@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import vehicleRoutes from "./routes/vehicleRoutes.js";
 
 const app = express();
 
@@ -12,5 +13,7 @@ app.get("/api/health", (req, res) => {
     message: "Autopia API is running",
   });
 });
+
+app.use("/api/vehicles", vehicleRoutes);
 
 export default app;
