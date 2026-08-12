@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
+import notFoundHandler from "./middleware/notFoundHandler.js";
+import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
 
@@ -15,5 +17,8 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/vehicles", vehicleRoutes);
+
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;
