@@ -3,8 +3,20 @@ import AppError from "../utils/AppError.js";
 
 const vehicleNotFound = () => new AppError("Vehicle not found", 404);
 
-export const createVehicle = (userId, vehicleData) =>
-  Vehicle.create({ ...vehicleData, owner: userId });
+export const createVehicle = async (userId, vehicleData) => {
+  try {
+    return await Vehicle.create({ ...vehicleData, owner: userId });
+  } catch (error) {
+    if (error?.code === 11000) {
+      throw new AppError(
+        "Vehicle with this license plate already exists",
+        409,
+      );
+    }
+
+    throw error;
+  }
+};
 
 export const getVehiclesByOwner = (userId) => Vehicle.find({ owner: userId });
 
