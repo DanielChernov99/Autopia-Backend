@@ -22,9 +22,19 @@ const userSchema = new mongoose.Schema(
     passwordHash: {
       type: String,
       required: true,
+      select: false,
     },
   },
-  { timestamps: true },
+  {
+    timestamps: true,
+    toJSON: {
+      transform: (doc, ret) => {
+        delete ret.passwordHash;
+        delete ret.__v;
+        return ret;
+      },
+    },
+  },
 );
 
 const User = mongoose.model("User", userSchema);

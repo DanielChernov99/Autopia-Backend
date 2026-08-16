@@ -1,14 +1,19 @@
+import { z } from "zod";
 import AppError from "../utils/AppError.js";
 
-const validate = (schema, requestProperty) => (req, res, next) => {
-  const result = schema.safeParse(req[requestProperty]);
+export default function validate(schema) {
+  return function (req, res, next) {
+    const result = schema.safeParse(req.body);
 
-  if (!result.success) {
-    return next(new AppError("Validation failed", 400, result.error.issues));
-  }
+    if (!result.success) {
+      const { formErrors, fieldErrors } = z.flattenError(result.error);
 
-  req[requestProperty] = result.data;
-  next();
-};
+      return next(
+        new AppError(formErrors[0] || "Validation failed", 400, fieldErrors),
+      );
+    }
 
-export default validate;
+    req.body = result.data;
+    next();
+  };
+}
