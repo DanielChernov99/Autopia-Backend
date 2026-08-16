@@ -1,4 +1,5 @@
 import { Router } from "express";
+import protect from "../middleware/protect.js";
 import {
   addVehicle,
   getVehicle,
@@ -16,17 +17,21 @@ import reminderRoutes from "./reminderRoutes.js";
 
 const router = Router();
 
-router.post("/", validate(manualVehicleCreationSchema, "body"), addVehicle);
+router.use(protect);
+
+router.post("/",
+//             validate(manualVehicleCreationSchema, "body"),
+            addVehicle);
 router.get("/", getVehicles);
 router.get(
   "/:vehicleId",
-  validate(vehicleIdParamsSchema, "params"),
+//   validate(vehicleIdParamsSchema, "params"),
   getVehicle,
 );
 router.patch(
   "/:vehicleId",
-  validate(vehicleIdParamsSchema, "params"),
-  validate(vehicleUpdateSchema, "body"),
+//   validate(vehicleIdParamsSchema, "params"),
+//   validate(vehicleUpdateSchema, "body"),
   updateVehicle,
 );
 router.use("/:vehicleId/maintenance", maintenanceRoutes);
