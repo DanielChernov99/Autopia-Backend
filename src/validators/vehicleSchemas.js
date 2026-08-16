@@ -7,30 +7,60 @@ const licensePlateSchema = z
 
 const requiredNumber = (schema) =>
   z.preprocess(
-    (value) =>
-      typeof value === "string" && value.trim() === "" ? undefined : value,
+    (value) => {
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      const trimmedValue = value.trim();
+      return trimmedValue === "" ? value : Number(trimmedValue);
+    },
     schema,
   );
 
-const optionalDate = z.preprocess(
-  (value) =>
-    typeof value === "string" && value.trim() === "" ? undefined : value,
-  z.coerce.date().optional(),
-);
+const dateSchema = z
+  .union([z.date(), z.string().trim().min(1), z.number()])
+  .pipe(z.coerce.date());
 
-export const manualVehicleCreationSchema = z.object({
+const optionalDate = dateSchema.optional();
+
+const editableVehicleFields = {
   licensePlate: licensePlateSchema,
   manufacturer: z.string().trim().min(1),
   model: z.string().trim().min(1),
-  year: requiredNumber(z.coerce.number().int()),
+  year: requiredNumber(z.number().int()),
   fuelType: z.string().trim().min(1),
-  currentMileage: requiredNumber(z.coerce.number().min(0)),
+  currentMileage: requiredNumber(z.number().min(0)),
   trimLevel: z.string().trim().optional(),
   color: z.string().trim().optional(),
   vehicleLicenseValidUntil: optionalDate,
-});
+};
+
+export const manualVehicleCreationSchema = z
+  .object(editableVehicleFields)
+  .strict();
 
 export const governmentAssistedVehicleCreationSchema = z.object({
   licensePlate: licensePlateSchema,
-  currentMileage: requiredNumber(z.coerce.number().min(0)),
+  currentMileage: requiredNumber(z.number().min(0)),
 });
+
+export const vehicleUpdateSchema = z
+  .object({
+    ...editableVehicleFields,
+    vehicleLicenseValidUntil: optionalDate.nullable(),
+  })
+  .partial()
+  .strict()
+  .refine((update) => Object.keys(update).length > 0, {
+    message: "At least one vehicle field is required",
+  });
+
+export const vehicleIdParamsSchema = z
+  .object({
+    vehicleId: z
+      .string()
+      .trim()
+      .regex(/^[a-f\d]{24}$/i, "Invalid vehicle ID"),
+  })
+  .strict();
