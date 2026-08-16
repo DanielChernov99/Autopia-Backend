@@ -3,10 +3,7 @@ import {
   MAINTENANCE_ACTIONS,
   MAINTENANCE_COMPONENTS,
 } from "../constants/maintenance.js";
-import {
-  REMINDER_SOURCES,
-  REMINDER_TIME_UNITS,
-} from "../constants/reminder.js";
+import { REMINDER_TIME_UNITS } from "../constants/reminder.js";
 
 const optionalNumber = (schema) =>
   z.preprocess(
@@ -58,9 +55,7 @@ const recurrenceSchema = z
 
 export const reminderCreationSchema = z
   .object({
-    vehicle: z.string().trim().regex(/^[a-f\d]{24}$/i),
     title: z.string().trim().min(1),
-    source: z.enum(REMINDER_SOURCES),
     notes: z.string().trim().optional(),
     component: z.enum(MAINTENANCE_COMPONENTS).optional(),
     action: z.enum(MAINTENANCE_ACTIONS).optional(),
@@ -69,17 +64,9 @@ export const reminderCreationSchema = z
     dueDate: optionalDate,
     dueMileage: optionalNumber(z.coerce.number().min(0)),
     recurrence: recurrenceSchema.optional(),
-    systemKey: z.string().trim().min(1).optional(),
   })
+  .strict()
   .superRefine((reminder, context) => {
-    if (reminder.source === "manual" && reminder.systemKey !== undefined) {
-      context.addIssue({
-        code: "custom",
-        message: "Manual reminders cannot have a system key",
-        path: ["systemKey"],
-      });
-    }
-
     if ((reminder.component === undefined) !== (reminder.action === undefined)) {
       context.addIssue({
         code: "custom",

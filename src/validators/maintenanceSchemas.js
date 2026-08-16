@@ -52,13 +52,14 @@ const maintenanceItemSchema = z
     }
   });
 
-export const maintenanceCreationSchema = z.object({
-  vehicle: z.string().trim().regex(/^[a-f\d]{24}$/i),
-  serviceDate: serviceDateSchema,
-  maintenanceType: z.enum(MAINTENANCE_TYPES),
-  mileageAtService: optionalNumber(z.coerce.number().min(0)),
-  totalCost: optionalNumber(z.coerce.number().min(0)),
-  garageName: z.string().trim().optional(),
-  notes: z.string().trim().optional(),
-  items: z.array(maintenanceItemSchema).optional(),
-});
+export const maintenanceCreationSchema = z
+  .object({
+    serviceDate: serviceDateSchema,
+    maintenanceType: z.enum(MAINTENANCE_TYPES),
+    mileageAtService: optionalNumber(z.coerce.number().min(0)),
+    totalCost: optionalNumber(z.coerce.number().min(0)),
+    garageName: z.string().trim().optional(),
+    notes: z.string().trim().optional(),
+    items: z.array(maintenanceItemSchema).optional(),
+  })
+  .strict();
