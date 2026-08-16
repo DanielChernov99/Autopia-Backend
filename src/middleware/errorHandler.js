@@ -1,20 +1,31 @@
+import { GovernmentVehicleApiError } from "../services/governmentVehicleService.js";
 import AppError from "../utils/AppError.js";
 
 const errorHandler = (err, req, res, next) => {
   const isAppError = err instanceof AppError;
+  const isGovernmentVehicleApiError = err instanceof GovernmentVehicleApiError;
   const isProduction = process.env.NODE_ENV === "production";
-  const statusCode = isAppError ? err.statusCode : 500;
+  let statusCode = 500;
+  let message = isProduction ? "Internal server error" : err.message;
+
+  if (isAppError) {
+    statusCode = err.statusCode;
+    message = err.message;
+  } else if (isGovernmentVehicleApiError) {
+    statusCode = 503;
+    message = "Government vehicle service is currently unavailable";
+  }
 
   const response = {
     success: false,
-    message: isAppError || !isProduction ? err.message : "Internal server error",
+    message,
   };
 
   if (isAppError && err.errors !== undefined) {
     response.errors = err.errors;
   }
 
-  if (!isAppError && !isProduction) {
+  if (!isAppError && !isGovernmentVehicleApiError && !isProduction) {
     response.stack = err.stack;
   }
 
