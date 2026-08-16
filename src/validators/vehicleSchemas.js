@@ -64,3 +64,9 @@ export const vehicleIdParamsSchema = z
       .regex(/^[a-f\d]{24}$/i, "Invalid vehicle ID"),
   })
   .strict();
+
+export const governmentVehicleLookupParamsSchema = z
+  .object({
+    licensePlate: licensePlateSchema,
+  })
+  .strict();

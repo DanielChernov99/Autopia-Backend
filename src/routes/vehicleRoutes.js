@@ -9,6 +9,7 @@ import {
 } from "../controllers/vehicleController.js";
 import validate from "../middleware/validate.js";
 import {
+  governmentVehicleLookupParamsSchema,
   manualVehicleCreationSchema,
   vehicleIdParamsSchema,
   vehicleUpdateSchema,
@@ -22,7 +23,11 @@ router.use(protect);
 
 router.post("/", validate(manualVehicleCreationSchema), addVehicle);
 router.get("/", getVehicles);
-router.get("/lookup/:licensePlate", lookupGovernmentVehicle);
+router.get(
+  "/lookup/:licensePlate",
+  validate(governmentVehicleLookupParamsSchema, "params"),
+  lookupGovernmentVehicle,
+);
 router.get(
   "/:vehicleId",
   validate(vehicleIdParamsSchema, "params"),
