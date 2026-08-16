@@ -23,6 +23,21 @@
 - Maintenance, Reminder, and other vehicle-scoped authorization is derived through the parent Vehicle.
 - Access to nested data requires ownership of that parent Vehicle.
 
+## User account
+
+- Account routes: `/api/auth/signup`, `/api/auth/login`, `/api/auth/userinfo`, `/api/auth/password`.
+- The authenticated account is always `req.user.id`; a user is never addressed by a body or route parameter.
+- Editable profile fields: `firstName`, `lastName`, `email`.
+- Passwords change through their own route and schema, never through the profile payload.
+  - A profile schema that accepted a password would let one payload mix hashed and unhashed writes.
+- Password change requires the current password and verifies it against the stored hash.
+  - Verification is application logic, not Zod: it compares against stored state.
+- `passwordHash` is `select: false`; load it explicitly for verification and never return it.
+- Email is unique globally; translate the duplicate-key failure into a conflict.
+- Changing a password does not invalidate issued tokens.
+  - There is no `passwordChangedAt` or token version, so session revocation is not available.
+  - Adding it requires both a User field and a check in the auth middleware.
+
 ## Nested vehicle resources
 
 - Route shape: `/api/vehicles/:vehicleId/...`.
