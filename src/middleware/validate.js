@@ -1,9 +1,9 @@
 import { z } from "zod";
 import AppError from "../utils/AppError.js";
 
-export default function validate(schema) {
+export default function validate(schema, requestProperty = "body") {
   return function (req, res, next) {
-    const result = schema.safeParse(req.body);
+    const result = schema.safeParse(req[requestProperty]);
 
     if (!result.success) {
       const { formErrors, fieldErrors } = z.flattenError(result.error);
@@ -13,7 +13,7 @@ export default function validate(schema) {
       );
     }
 
-    req.body = result.data;
+    req[requestProperty] = result.data;
     next();
   };
 }

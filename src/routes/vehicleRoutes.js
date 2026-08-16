@@ -20,20 +20,18 @@ const router = Router();
 
 router.use(protect);
 
-router.post("/",
-//             validate(manualVehicleCreationSchema, "body"),
-            addVehicle);
+router.post("/", validate(manualVehicleCreationSchema), addVehicle);
 router.get("/", getVehicles);
 router.get("/lookup/:licensePlate", lookupGovernmentVehicle);
 router.get(
   "/:vehicleId",
-//   validate(vehicleIdParamsSchema, "params"),
+  validate(vehicleIdParamsSchema, "params"),
   getVehicle,
 );
 router.patch(
   "/:vehicleId",
-//   validate(vehicleIdParamsSchema, "params"),
-//   validate(vehicleUpdateSchema, "body"),
+  validate(vehicleIdParamsSchema, "params"),
+  validate(vehicleUpdateSchema),
   updateVehicle,
 );
 router.use("/:vehicleId/maintenance", maintenanceRoutes);
