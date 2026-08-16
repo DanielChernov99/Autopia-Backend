@@ -29,7 +29,7 @@ export async function login(req, res) {
   sendAuthResponse(res, user, 200, "Logged in");
 }
 
-export function getMe(req, res) {
+export function getUserInfo(req, res) {
   res.status(200).json({
     success: true,
     user: req.user,

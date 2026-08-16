@@ -1,7 +1,7 @@
 import { Router } from "express";
 import {
   changePassword,
-  getMe,
+  getUserInfo,
   login,
   signup,
   updateUserInfo,
@@ -19,7 +19,7 @@ const router = Router();
 
 router.post("/signup", validate(userRegistrationSchema), signup);
 router.post("/login", validate(userLoginSchema), login);
-router.get("/me", protect, getMe);
+router.get("/userinfo", protect, getUserInfo);
 router.patch("/userinfo", protect, validate(userUpdateSchema), updateUserInfo);
 router.patch(
   "/password",
