@@ -4,6 +4,7 @@ import {
   addVehicle,
   getVehicle,
   getVehicles,
+  lookupGovernmentVehicle,
   updateVehicle,
 } from "../controllers/vehicleController.js";
 import validate from "../middleware/validate.js";
@@ -23,6 +24,7 @@ router.post("/",
 //             validate(manualVehicleCreationSchema, "body"),
             addVehicle);
 router.get("/", getVehicles);
+router.get("/lookup/:licensePlate", lookupGovernmentVehicle);
 router.get(
   "/:vehicleId",
 //   validate(vehicleIdParamsSchema, "params"),
