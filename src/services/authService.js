@@ -1,5 +1,9 @@
 import bcrypt from "bcrypt";
 import User from "../db/models/User.js";
+import {
+  getUserWithPasswordHash,
+  updateUserById,
+} from "../models/userModel.js";
 import AppError from "../utils/AppError.js";
 
 const SALT_ROUNDS = Number.parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12;
@@ -34,4 +38,20 @@ export async function loginUser({ email, password }) {
   }
 
   return user;
+}
+
+export async function changeUserPassword(
+  userId,
+  { currentPassword, newPassword },
+) {
+  const user = await getUserWithPasswordHash(userId);
+  const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+
+  if (!isPasswordValid) {
+    throw new AppError("Current password is incorrect", 401);
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+  await updateUserById(userId, { passwordHash });
 }

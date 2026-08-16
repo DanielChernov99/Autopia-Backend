@@ -1,4 +1,9 @@
-import { loginUser, registerUser } from "../services/authService.js";
+import { updateUserById } from "../models/userModel.js";
+import {
+  changeUserPassword,
+  loginUser,
+  registerUser,
+} from "../services/authService.js";
 import { signToken } from "../utils/tokens.js";
 
 function sendAuthResponse(res, user, statusCode, message) {
@@ -24,9 +29,28 @@ export async function login(req, res) {
   sendAuthResponse(res, user, 200, "Logged in");
 }
 
-export function getMe(req, res) {
+export function getUserInfo(req, res) {
   res.status(200).json({
     success: true,
     user: req.user,
+  });
+}
+
+export async function updateUserInfo(req, res) {
+  const user = await updateUserById(req.user.id, req.body);
+
+  res.status(200).json({
+    success: true,
+    message: "Profile updated",
+    user,
+  });
+}
+
+export async function changePassword(req, res) {
+  await changeUserPassword(req.user.id, req.body);
+
+  res.status(200).json({
+    success: true,
+    message: "Password updated",
   });
 }
