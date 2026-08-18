@@ -24,14 +24,17 @@ const requiredNumber = (schema) =>
     schema,
   );
 
-const serviceDateSchema = z.preprocess(
+const maintenanceDateSchema = z.preprocess(
   (value) =>
     value === null || (typeof value === "string" && value.trim() === "")
       ? undefined
       : value,
   z.coerce
     .date()
-    .refine((date) => date <= new Date(), "Service date cannot be in the future"),
+    .refine(
+      (date) => date <= new Date(),
+      "Maintenance date cannot be in the future",
+    ),
 );
 
 const objectIdSchema = (message) =>
@@ -42,9 +45,9 @@ const objectIdSchema = (message) =>
 
 const editableMaintenanceFields = {
   title: z.string().trim().min(1),
-  serviceDate: serviceDateSchema,
+  maintenanceDate: maintenanceDateSchema,
   type: z.enum(MAINTENANCE_TYPES),
-  mileageAtService: optionalNumber(z.coerce.number().min(0)),
+  mileageAtMaintenance: optionalNumber(z.coerce.number().min(0)),
   totalCost: requiredNumber(z.coerce.number().min(0)),
   description: z.string().trim().optional(),
   parts: z

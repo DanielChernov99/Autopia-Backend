@@ -7,7 +7,7 @@ export const createMaintenance = (vehicleId, maintenanceData) =>
   Maintenance.create({ ...maintenanceData, vehicleId });
 
 export const getMaintenancesByVehicle = (vehicleId) =>
-  Maintenance.find({ vehicleId }).sort({ serviceDate: -1, createdAt: -1 });
+  Maintenance.find({ vehicleId }).sort({ maintenanceDate: -1, createdAt: -1 });
 
 export const getMaintenanceByIdForVehicle = async (
   maintenanceId,

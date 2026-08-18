@@ -16,7 +16,7 @@ const maintenanceSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    serviceDate: {
+    maintenanceDate: {
       type: Date,
       required: true,
     },
@@ -25,7 +25,7 @@ const maintenanceSchema = new mongoose.Schema(
       required: true,
       enum: MAINTENANCE_TYPES,
     },
-    mileageAtService: {
+    mileageAtMaintenance: {
       type: Number,
       min: 0,
     },
@@ -47,7 +47,7 @@ const maintenanceSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-maintenanceSchema.index({ vehicleId: 1, serviceDate: -1 });
+maintenanceSchema.index({ vehicleId: 1, maintenanceDate: -1 });
 
 const Maintenance = mongoose.model("Maintenance", maintenanceSchema);
 
