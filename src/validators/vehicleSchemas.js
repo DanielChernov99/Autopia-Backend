@@ -27,6 +27,14 @@ const optionalServiceIntervalKm = requiredNumber(
   z.number().int().positive(),
 ).optional();
 
+const governmentDataSchema = z
+  .object({
+    resourceId: z.string().trim().min(1).optional(),
+    fetchedAt: optionalDate,
+    raw: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
+
 const editableVehicleFields = {
   licensePlate: licensePlateSchema,
   manufacturer: z.string().trim().min(1),
@@ -37,12 +45,16 @@ const editableVehicleFields = {
   trimLevel: z.string().trim().optional(),
   color: z.string().trim().optional(),
   vehicleLicenseValidUntil: optionalDate,
+  insuranceExpiryDate: optionalDate,
   lastServiceDate: optionalDate,
   serviceIntervalKm: optionalServiceIntervalKm,
 };
 
 export const manualVehicleCreationSchema = z
-  .object(editableVehicleFields)
+  .object({
+    ...editableVehicleFields,
+    governmentData: governmentDataSchema.optional(),
+  })
   .strict();
 
 export const governmentAssistedVehicleCreationSchema = z.object({
@@ -54,6 +66,7 @@ export const vehicleUpdateSchema = z
   .object({
     ...editableVehicleFields,
     vehicleLicenseValidUntil: optionalDate.nullable(),
+    insuranceExpiryDate: optionalDate.nullable(),
     lastServiceDate: optionalDate.nullable(),
     serviceIntervalKm: optionalServiceIntervalKm.nullable(),
   })

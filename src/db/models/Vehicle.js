@@ -54,6 +54,7 @@ const vehicleSchema = new mongoose.Schema(
       trim: true,
     },
     vehicleLicenseValidUntil: Date,
+    insuranceExpiryDate: Date,
     lastServiceDate: Date,
     serviceIntervalKm: {
       type: Number,
