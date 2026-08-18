@@ -1,4 +1,4 @@
-export const getMaintenance = (req, res) => {
+export const getMaintenances = (req, res) => {
   res.status(200).json({
     success: true,
     message: "Maintenance endpoint works",

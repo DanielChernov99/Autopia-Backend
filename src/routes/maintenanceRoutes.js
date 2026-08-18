@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { getMaintenance } from "../controllers/maintenanceController.js";
+import { getMaintenances } from "../controllers/maintenanceController.js";
 
 const router = Router({ mergeParams: true });
 
-router.get("/", getMaintenance);
+router.get("/", getMaintenances);
 
 export default router;
