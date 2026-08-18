@@ -1,18 +1,18 @@
 import mongoose from "mongoose";
 import {
   MAINTENANCE_ACTIONS,
-  MAINTENANCE_COMPONENTS,
+  MAINTENANCE_PARTS,
   MAINTENANCE_TYPES,
 } from "../../constants/maintenance.js";
 
 const maintenanceItemSchema = new mongoose.Schema(
   {
-    component: {
+    part: {
       type: String,
       required: true,
-      enum: MAINTENANCE_COMPONENTS,
+      enum: MAINTENANCE_PARTS,
     },
-    customComponent: {
+    customPart: {
       type: String,
       trim: true,
     },

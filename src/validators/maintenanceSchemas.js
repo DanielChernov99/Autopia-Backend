@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   MAINTENANCE_ACTIONS,
-  MAINTENANCE_COMPONENTS,
+  MAINTENANCE_PARTS,
   MAINTENANCE_TYPES,
 } from "../constants/maintenance.js";
 
@@ -27,19 +27,19 @@ const serviceDateSchema = z.preprocess(
 
 const maintenanceItemSchema = z
   .object({
-    component: z.enum(MAINTENANCE_COMPONENTS),
-    customComponent: z.string().trim().optional(),
+    part: z.enum(MAINTENANCE_PARTS),
+    customPart: z.string().trim().optional(),
     action: z.enum(MAINTENANCE_ACTIONS),
     customAction: z.string().trim().optional(),
     cost: optionalNumber(z.coerce.number().min(0)),
     notes: z.string().trim().optional(),
   })
   .superRefine((item, context) => {
-    if (item.component === "other" && !item.customComponent) {
+    if (item.part === "other" && !item.customPart) {
       context.addIssue({
         code: "custom",
-        message: "Custom component is required when component is other",
-        path: ["customComponent"],
+        message: "Custom part is required when part is other",
+        path: ["customPart"],
       });
     }
 

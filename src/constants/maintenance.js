@@ -16,7 +16,7 @@ export const MAINTENANCE_ACTIONS = [
   "other",
 ];
 
-export const MAINTENANCE_COMPONENTS = [
+export const MAINTENANCE_PARTS = [
   "engineOil",
   "oilFilter",
   "airFilter",
