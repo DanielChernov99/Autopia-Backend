@@ -54,6 +54,12 @@ const vehicleSchema = new mongoose.Schema(
       trim: true,
     },
     vehicleLicenseValidUntil: Date,
+    lastServiceDate: Date,
+    serviceIntervalKm: {
+      type: Number,
+      min: 1,
+      validate: Number.isInteger,
+    },
     governmentData: governmentDataSchema,
   },
   { timestamps: true },
