@@ -23,6 +23,17 @@ const dateSchema = z
   .pipe(z.coerce.date());
 
 const optionalDate = dateSchema.optional();
+const optionalMaintenanceInterval = requiredNumber(
+  z.number().int().positive(),
+).optional();
+
+const governmentDataSchema = z
+  .object({
+    resourceId: z.string().trim().min(1).optional(),
+    fetchedAt: optionalDate,
+    raw: z.record(z.string(), z.unknown()).optional(),
+  })
+  .strict();
 
 const editableVehicleFields = {
   licensePlate: licensePlateSchema,
@@ -34,10 +45,16 @@ const editableVehicleFields = {
   trimLevel: z.string().trim().optional(),
   color: z.string().trim().optional(),
   vehicleLicenseValidUntil: optionalDate,
+  insuranceExpiryDate: optionalDate,
+  lastMaintenanceDate: optionalDate,
+  maintenanceInterval: optionalMaintenanceInterval,
 };
 
 export const manualVehicleCreationSchema = z
-  .object(editableVehicleFields)
+  .object({
+    ...editableVehicleFields,
+    governmentData: governmentDataSchema.optional(),
+  })
   .strict();
 
 export const governmentAssistedVehicleCreationSchema = z.object({
@@ -49,6 +66,9 @@ export const vehicleUpdateSchema = z
   .object({
     ...editableVehicleFields,
     vehicleLicenseValidUntil: optionalDate.nullable(),
+    insuranceExpiryDate: optionalDate.nullable(),
+    lastMaintenanceDate: optionalDate.nullable(),
+    maintenanceInterval: optionalMaintenanceInterval.nullable(),
   })
   .partial()
   .strict()
