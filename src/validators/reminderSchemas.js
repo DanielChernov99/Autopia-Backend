@@ -1,7 +1,7 @@
 import { z } from "zod";
 import {
   MAINTENANCE_ACTIONS,
-  MAINTENANCE_COMPONENTS,
+  MAINTENANCE_PARTS,
 } from "../constants/maintenance.js";
 import { REMINDER_TIME_UNITS } from "../constants/reminder.js";
 
@@ -57,9 +57,9 @@ export const reminderCreationSchema = z
   .object({
     title: z.string().trim().min(1),
     notes: z.string().trim().optional(),
-    component: z.enum(MAINTENANCE_COMPONENTS).optional(),
+    part: z.enum(MAINTENANCE_PARTS).optional(),
     action: z.enum(MAINTENANCE_ACTIONS).optional(),
-    customComponent: z.string().trim().optional(),
+    customPart: z.string().trim().optional(),
     customAction: z.string().trim().optional(),
     dueDate: optionalDate,
     dueMileage: optionalNumber(z.coerce.number().min(0)),
@@ -67,19 +67,19 @@ export const reminderCreationSchema = z
   })
   .strict()
   .superRefine((reminder, context) => {
-    if ((reminder.component === undefined) !== (reminder.action === undefined)) {
+    if ((reminder.part === undefined) !== (reminder.action === undefined)) {
       context.addIssue({
         code: "custom",
-        message: "Component and action must be provided together",
-        path: reminder.component === undefined ? ["component"] : ["action"],
+        message: "Part and action must be provided together",
+        path: reminder.part === undefined ? ["part"] : ["action"],
       });
     }
 
-    if (reminder.component === "other" && !reminder.customComponent) {
+    if (reminder.part === "other" && !reminder.customPart) {
       context.addIssue({
         code: "custom",
-        message: "Custom component is required when component is other",
-        path: ["customComponent"],
+        message: "Custom part is required when part is other",
+        path: ["customPart"],
       });
     }
 
