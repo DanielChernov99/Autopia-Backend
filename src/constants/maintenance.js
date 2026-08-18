@@ -3,7 +3,7 @@ export const MAINTENANCE_TYPES = [
   "repair",
   "replacement",
   "inspection",
-  "general",
+  "other",
 ];
 
 export const MAINTENANCE_ACTIONS = [
