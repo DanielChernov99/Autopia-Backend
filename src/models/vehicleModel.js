@@ -66,8 +66,8 @@ export const deleteVehicleForOwner = async (vehicleId, userId) => {
         throw vehicleNotFound();
       }
 
-      await Maintenance.deleteMany({ vehicle: vehicleId }).session(session);
-      await Reminder.deleteMany({ vehicle: vehicleId }).session(session);
+      await Maintenance.deleteMany({ vehicleId }).session(session);
+      await Reminder.deleteMany({ vehicleId }).session(session);
       await vehicle.deleteOne({ session });
 
       deletedVehicle = vehicle;

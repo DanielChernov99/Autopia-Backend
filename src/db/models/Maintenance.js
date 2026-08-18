@@ -39,7 +39,7 @@ const maintenanceItemSchema = new mongoose.Schema(
 
 const maintenanceSchema = new mongoose.Schema(
   {
-    vehicle: {
+    vehicleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
       required: true,

@@ -55,8 +55,8 @@ const vehicleSchema = new mongoose.Schema(
     },
     vehicleLicenseValidUntil: Date,
     insuranceExpiryDate: Date,
-    lastServiceDate: Date,
-    serviceIntervalKm: {
+    lastMaintenanceDate: Date,
+    maintenanceInterval: {
       type: Number,
       min: 1,
       validate: Number.isInteger,

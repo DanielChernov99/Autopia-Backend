@@ -48,7 +48,7 @@ const recurrenceSchema = new mongoose.Schema(
 
 const reminderSchema = new mongoose.Schema(
   {
-    vehicle: {
+    vehicleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
       required: true,

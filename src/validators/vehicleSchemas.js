@@ -23,7 +23,7 @@ const dateSchema = z
   .pipe(z.coerce.date());
 
 const optionalDate = dateSchema.optional();
-const optionalServiceIntervalKm = requiredNumber(
+const optionalMaintenanceInterval = requiredNumber(
   z.number().int().positive(),
 ).optional();
 
@@ -46,8 +46,8 @@ const editableVehicleFields = {
   color: z.string().trim().optional(),
   vehicleLicenseValidUntil: optionalDate,
   insuranceExpiryDate: optionalDate,
-  lastServiceDate: optionalDate,
-  serviceIntervalKm: optionalServiceIntervalKm,
+  lastMaintenanceDate: optionalDate,
+  maintenanceInterval: optionalMaintenanceInterval,
 };
 
 export const manualVehicleCreationSchema = z
@@ -67,8 +67,8 @@ export const vehicleUpdateSchema = z
     ...editableVehicleFields,
     vehicleLicenseValidUntil: optionalDate.nullable(),
     insuranceExpiryDate: optionalDate.nullable(),
-    lastServiceDate: optionalDate.nullable(),
-    serviceIntervalKm: optionalServiceIntervalKm.nullable(),
+    lastMaintenanceDate: optionalDate.nullable(),
+    maintenanceInterval: optionalMaintenanceInterval.nullable(),
   })
   .partial()
   .strict()
