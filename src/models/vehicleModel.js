@@ -1,3 +1,6 @@
+import mongoose from "mongoose";
+import Maintenance from "../db/models/Maintenance.js";
+import Reminder from "../db/models/Reminder.js";
 import Vehicle from "../db/models/Vehicle.js";
 import AppError from "../utils/AppError.js";
 
@@ -46,4 +49,32 @@ export const updateVehicleForOwner = async (
   }
 
   return vehicle;
+};
+
+export const deleteVehicleForOwner = async (vehicleId, userId) => {
+  const session = await mongoose.startSession();
+  let deletedVehicle;
+
+  try {
+    await session.withTransaction(async () => {
+      const vehicle = await Vehicle.findOne({
+        _id: vehicleId,
+        owner: userId,
+      }).session(session);
+
+      if (!vehicle) {
+        throw vehicleNotFound();
+      }
+
+      await Maintenance.deleteMany({ vehicle: vehicleId }).session(session);
+      await Reminder.deleteMany({ vehicle: vehicleId }).session(session);
+      await vehicle.deleteOne({ session });
+
+      deletedVehicle = vehicle;
+    });
+
+    return deletedVehicle;
+  } finally {
+    await session.endSession();
+  }
 };

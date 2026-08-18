@@ -1,5 +1,6 @@
 import {
   createVehicle,
+  deleteVehicleForOwner,
   getVehicleByIdForOwner,
   getVehiclesByOwner,
   updateVehicleForOwner,
@@ -60,6 +61,17 @@ export const updateVehicle = async (req, res) => {
   const userId = req.user.id;
   const { vehicleId } = req.params;
   const vehicle = await updateVehicleForOwner(vehicleId, userId, req.body);
+
+  res.status(200).json({
+    success: true,
+    data: { vehicle },
+  });
+};
+
+export const deleteVehicle = async (req, res) => {
+  const userId = req.user.id;
+  const { vehicleId } = req.params;
+  const vehicle = await deleteVehicleForOwner(vehicleId, userId);
 
   res.status(200).json({
     success: true,

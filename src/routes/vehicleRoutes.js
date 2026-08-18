@@ -2,6 +2,7 @@ import { Router } from "express";
 import protect from "../middleware/protect.js";
 import {
   addVehicle,
+  deleteVehicle,
   getVehicle,
   getVehicles,
   lookupGovernmentVehicle,
@@ -38,6 +39,11 @@ router.patch(
   validate(vehicleIdParamsSchema, "params"),
   validate(vehicleUpdateSchema),
   updateVehicle,
+);
+router.delete(
+  "/:vehicleId",
+  validate(vehicleIdParamsSchema, "params"),
+  deleteVehicle,
 );
 router.use("/:vehicleId/maintenance", maintenanceRoutes);
 router.use("/:vehicleId/reminders", reminderRoutes);
