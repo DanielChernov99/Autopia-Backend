@@ -1,81 +1,53 @@
 import mongoose from "mongoose";
 import {
-  MAINTENANCE_ACTIONS,
-  MAINTENANCE_COMPONENTS,
+  MAINTENANCE_PARTS,
   MAINTENANCE_TYPES,
 } from "../../constants/maintenance.js";
 
-const maintenanceItemSchema = new mongoose.Schema(
-  {
-    component: {
-      type: String,
-      required: true,
-      enum: MAINTENANCE_COMPONENTS,
-    },
-    customComponent: {
-      type: String,
-      trim: true,
-    },
-    action: {
-      type: String,
-      required: true,
-      enum: MAINTENANCE_ACTIONS,
-    },
-    customAction: {
-      type: String,
-      trim: true,
-    },
-    cost: {
-      type: Number,
-      min: 0,
-    },
-    notes: {
-      type: String,
-      trim: true,
-    },
-  },
-  { _id: false },
-);
-
 const maintenanceSchema = new mongoose.Schema(
   {
-    vehicle: {
+    vehicleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
       required: true,
     },
-    serviceDate: {
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    maintenanceDate: {
       type: Date,
       required: true,
     },
-    maintenanceType: {
+    type: {
       type: String,
       required: true,
       enum: MAINTENANCE_TYPES,
     },
-    mileageAtService: {
+    mileageAtMaintenance: {
       type: Number,
       min: 0,
     },
     totalCost: {
       type: Number,
+      required: true,
       min: 0,
     },
-    garageName: {
+    description: {
       type: String,
       trim: true,
     },
-    notes: {
-      type: String,
-      trim: true,
-    },
-    items: {
-      type: [maintenanceItemSchema],
+    parts: {
+      type: [String],
+      enum: MAINTENANCE_PARTS,
       default: undefined,
     },
   },
   { timestamps: true },
 );
+
+maintenanceSchema.index({ vehicleId: 1, maintenanceDate: -1 });
 
 const Maintenance = mongoose.model("Maintenance", maintenanceSchema);
 

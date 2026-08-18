@@ -39,7 +39,7 @@ router.patch(
   validate(vehicleUpdateSchema),
   updateVehicle,
 );
-router.use("/:vehicleId/maintenance", maintenanceRoutes);
+router.use("/:vehicleId/maintenances", maintenanceRoutes);
 router.use("/:vehicleId/reminders", reminderRoutes);
 
 export default router;

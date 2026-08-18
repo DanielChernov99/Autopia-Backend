@@ -42,15 +42,16 @@
 
 - Route shape: `/api/vehicles/:vehicleId/...`.
 - Validate `vehicleId` as a route parameter.
+- The persisted relationship field is `vehicleId`.
 - Treat the route parameter as the sole source of the stored Vehicle relationship.
-- Do not duplicate `vehicleId` or `vehicle` in writable request bodies.
+- Do not duplicate `vehicleId` in writable request bodies.
 - Assign the relationship in application code after parent ownership is established.
 
 ## Manually created Reminders
 
 - Frontend payload: user-editable reminder data only.
 - Backend-controlled values:
-  - `vehicle = req.params.vehicleId`
+  - `vehicleId = req.params.vehicleId`
   - `source = "manual"`
 - `systemKey` is internal metadata for backend-created system reminders.
 - Add system-reminder behavior through a backend workflow; do not widen the manual client schema.

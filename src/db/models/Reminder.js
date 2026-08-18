@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import {
   MAINTENANCE_ACTIONS,
-  MAINTENANCE_COMPONENTS,
+  MAINTENANCE_PARTS,
 } from "../../constants/maintenance.js";
 import {
   REMINDER_SOURCES,
@@ -48,7 +48,7 @@ const recurrenceSchema = new mongoose.Schema(
 
 const reminderSchema = new mongoose.Schema(
   {
-    vehicle: {
+    vehicleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Vehicle",
       required: true,
@@ -67,15 +67,15 @@ const reminderSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    component: {
+    part: {
       type: String,
-      enum: MAINTENANCE_COMPONENTS,
+      enum: MAINTENANCE_PARTS,
     },
     action: {
       type: String,
       enum: MAINTENANCE_ACTIONS,
     },
-    customComponent: {
+    customPart: {
       type: String,
       trim: true,
     },
