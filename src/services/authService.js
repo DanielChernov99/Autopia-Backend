@@ -48,7 +48,7 @@ export async function changeUserPassword(
   const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
 
   if (!isPasswordValid) {
-    throw new AppError("Current password is incorrect", 401);
+    throw new AppError("Current password is incorrect", 400);
   }
 
   const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
