@@ -8,11 +8,11 @@ import {
 
 export const addMaintenance = async (req, res) => {
   const { vehicleId } = req.params;
-  const maintenance = await createMaintenance(vehicleId, req.body);
+  const { maintenance, vehicle } = await createMaintenance(vehicleId, req.body);
 
   res.status(201).json({
     success: true,
-    data: { maintenance },
+    data: { maintenance, vehicle },
   });
 };
 
@@ -41,7 +41,7 @@ export const getMaintenance = async (req, res) => {
 
 export const updateMaintenance = async (req, res) => {
   const { vehicleId, maintenanceId } = req.params;
-  const maintenance = await updateMaintenanceForVehicle(
+  const { maintenance, vehicle } = await updateMaintenanceForVehicle(
     maintenanceId,
     vehicleId,
     req.body,
@@ -49,7 +49,7 @@ export const updateMaintenance = async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: { maintenance },
+    data: { maintenance, vehicle },
   });
 };
 

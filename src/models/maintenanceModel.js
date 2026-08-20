@@ -1,10 +1,47 @@
 import Maintenance from "../db/models/Maintenance.js";
+import Vehicle from "../db/models/Vehicle.js";
 import AppError from "../utils/AppError.js";
 
 const maintenanceNotFound = () => new AppError("Maintenance not found", 404);
 
-export const createMaintenance = (vehicleId, maintenanceData) =>
-  Maintenance.create({ ...maintenanceData, vehicleId });
+export const syncVehicleMetricsOnMaintenance = async (vehicleId, maintenanceData) => {
+  const vehicle = await Vehicle.findById(vehicleId);
+  if (!vehicle) return null;
+
+  let hasUpdates = false;
+
+  if (
+    maintenanceData.mileageAtMaintenance !== undefined &&
+    maintenanceData.mileageAtMaintenance !== null &&
+    Number(maintenanceData.mileageAtMaintenance) > Number(vehicle.currentMileage || 0)
+  ) {
+    vehicle.currentMileage = Number(maintenanceData.mileageAtMaintenance);
+    hasUpdates = true;
+  }
+
+  if (maintenanceData.maintenanceDate) {
+    const newDate = new Date(maintenanceData.maintenanceDate);
+    if (
+      !vehicle.lastMaintenanceDate ||
+      newDate >= new Date(vehicle.lastMaintenanceDate)
+    ) {
+      vehicle.lastMaintenanceDate = newDate;
+      hasUpdates = true;
+    }
+  }
+
+  if (hasUpdates) {
+    await vehicle.save();
+  }
+
+  return vehicle;
+};
+
+export const createMaintenance = async (vehicleId, maintenanceData) => {
+  const maintenance = await Maintenance.create({ ...maintenanceData, vehicleId });
+  const vehicle = await syncVehicleMetricsOnMaintenance(vehicleId, maintenanceData);
+  return { maintenance, vehicle };
+};
 
 export const getMaintenancesByVehicle = (vehicleId) =>
   Maintenance.find({ vehicleId }).sort({ maintenanceDate: -1, createdAt: -1 });
@@ -40,7 +77,9 @@ export const updateMaintenanceForVehicle = async (
     throw maintenanceNotFound();
   }
 
-  return maintenance;
+  const vehicle = await syncVehicleMetricsOnMaintenance(vehicleId, updateData);
+
+  return { maintenance, vehicle };
 };
 
 export const deleteMaintenanceForVehicle = async (maintenanceId, vehicleId) => {
