@@ -47,14 +47,14 @@
 - Do not duplicate `vehicleId` in writable request bodies.
 - Assign the relationship in application code after parent ownership is established.
 
-## Manually created Reminders
+## Reminders
 
-- Frontend payload: user-editable reminder data only.
-- Backend-controlled values:
-  - `vehicleId = req.params.vehicleId`
-  - `source = "manual"`
-- `systemKey` is internal metadata for backend-created system reminders.
-- Add system-reminder behavior through a backend workflow; do not widen the manual client schema.
+- A reminder is a renewal reminder for a recurring vehicle obligation.
+- Client payload: `type`, `dueDate`, `frequency`, and an optional `title`.
+  - `type` is `test` or `insurance`.
+  - `frequency` is `yearly` or `halfYearly`.
+- The only backend-controlled value is `vehicleId = req.params.vehicleId`.
+- Reminders are not mileage-based and do not model maintenance parts or actions.
 
 ## Validation boundaries
 
@@ -64,7 +64,7 @@
 - Type validation and coercion.
 - Normalization and enum validation.
 - Cross-field rules based only on the current payload.
-- Examples: paired fields, non-empty updates, and scheduling requirements.
+- Examples: non-empty updates, a new password differing from the current one, and unique array entries.
 
 ### Not Zod
 
