@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { MESSAGE_ROLES } from "../../constants/conversation.js";
 
 const messageSchema = new mongoose.Schema(
   {
@@ -10,7 +11,7 @@ const messageSchema = new mongoose.Schema(
     role: {
       type: String,
       required: true,
-      enum: ["user", "assistant"],
+      enum: MESSAGE_ROLES,
     },
     content: {
       type: String,
