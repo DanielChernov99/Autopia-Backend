@@ -1,106 +1,45 @@
 import { z } from "zod";
 import {
-  MAINTENANCE_ACTIONS,
-  MAINTENANCE_PARTS,
-} from "../constants/maintenance.js";
-import { REMINDER_TIME_UNITS } from "../constants/reminder.js";
+  REMINDER_FREQUENCIES,
+  REMINDER_TYPES,
+} from "../constants/reminder.js";
 
-const optionalNumber = (schema) =>
-  z.preprocess(
-    (value) =>
-      value === null ||
-      (typeof value === "string" && value.trim() === "")
-        ? undefined
-        : value,
-    schema.optional(),
-  );
-
-const requiredNumber = (schema) =>
-  z.preprocess(
-    (value) =>
-      value === null ||
-      (typeof value === "string" && value.trim() === "")
-        ? undefined
-        : value,
-    schema,
-  );
-
-const optionalDate = z.preprocess(
+const reminderDueDateSchema = z.preprocess(
   (value) =>
     value === null || (typeof value === "string" && value.trim() === "")
       ? undefined
       : value,
-  z.coerce.date().optional(),
+  z.coerce.date(),
 );
 
-const recurrenceSchema = z
-  .object({
-    time: z
-      .object({
-        interval: requiredNumber(z.coerce.number().int().positive()),
-        unit: z.enum(REMINDER_TIME_UNITS),
-      })
-      .optional(),
-    mileage: z
-      .object({
-        interval: requiredNumber(z.coerce.number().int().positive()),
-      })
-      .optional(),
-  })
-  .refine(
-    (recurrence) =>
-      recurrence.time !== undefined || recurrence.mileage !== undefined,
-    { message: "Recurrence must contain time or mileage" },
-  );
+const objectIdSchema = (message) =>
+  z
+    .string()
+    .trim()
+    .regex(/^[a-f\d]{24}$/i, message);
+
+const editableReminderFields = {
+  title: z.string().trim().min(1).optional(),
+  type: z.enum(REMINDER_TYPES),
+  dueDate: reminderDueDateSchema,
+  frequency: z.enum(REMINDER_FREQUENCIES),
+};
 
 export const reminderCreationSchema = z
-  .object({
-    title: z.string().trim().min(1),
-    notes: z.string().trim().optional(),
-    part: z.enum(MAINTENANCE_PARTS).optional(),
-    action: z.enum(MAINTENANCE_ACTIONS).optional(),
-    customPart: z.string().trim().optional(),
-    customAction: z.string().trim().optional(),
-    dueDate: optionalDate,
-    dueMileage: optionalNumber(z.coerce.number().min(0)),
-    recurrence: recurrenceSchema.optional(),
-  })
+  .object(editableReminderFields)
+  .strict();
+
+export const reminderUpdateSchema = z
+  .object(editableReminderFields)
+  .partial()
   .strict()
-  .superRefine((reminder, context) => {
-    if ((reminder.part === undefined) !== (reminder.action === undefined)) {
-      context.addIssue({
-        code: "custom",
-        message: "Part and action must be provided together",
-        path: reminder.part === undefined ? ["part"] : ["action"],
-      });
-    }
-
-    if (reminder.part === "other" && !reminder.customPart) {
-      context.addIssue({
-        code: "custom",
-        message: "Custom part is required when part is other",
-        path: ["customPart"],
-      });
-    }
-
-    if (reminder.action === "other" && !reminder.customAction) {
-      context.addIssue({
-        code: "custom",
-        message: "Custom action is required when action is other",
-        path: ["customAction"],
-      });
-    }
-
-    if (
-      reminder.dueDate === undefined &&
-      reminder.dueMileage === undefined &&
-      reminder.recurrence?.time === undefined &&
-      reminder.recurrence?.mileage === undefined
-    ) {
-      context.addIssue({
-        code: "custom",
-        message: "At least one scheduling condition is required",
-        path: ["dueDate"],
-      });
-    }
+  .refine((update) => Object.keys(update).length > 0, {
+    message: "At least one reminder field is required",
   });
+
+export const reminderParamsSchema = z
+  .object({
+    vehicleId: objectIdSchema("Invalid vehicle ID"),
+    reminderId: objectIdSchema("Invalid reminder ID"),
+  })
+  .strict();
