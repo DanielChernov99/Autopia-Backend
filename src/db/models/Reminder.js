@@ -34,6 +34,7 @@ const reminderSchema = new mongoose.Schema(
 );
 
 reminderSchema.index({ vehicleId: 1, dueDate: 1 });
+reminderSchema.index({ vehicleId: 1, type: 1 }, { unique: true });
 
 const Reminder = mongoose.model("Reminder", reminderSchema);
 
