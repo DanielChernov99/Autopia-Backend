@@ -38,6 +38,9 @@ export const chatMessageSchema = z
     primaryVehicleId: objectIdSchema("Invalid vehicle ID")
       .nullable()
       .optional(),
+    focusedVehicleId: objectIdSchema("Invalid vehicle ID")
+      .nullable()
+      .optional(),
   })
   .strict()
   .superRefine((data, context) => {

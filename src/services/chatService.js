@@ -3,15 +3,18 @@ import {
   appendMessageToConversationWithDetails,
   createConversation,
 } from "../models/conversationModel.js";
+import { getVehicleByIdForOwner } from "../models/vehicleModel.js";
 import { chatProvider } from "./ai/provider.js";
 import { toolExecutor } from "./ai/toolExecutor.js";
 import { runToolLoop } from "./ai/toolLoopService.js";
+import { toAIFocusedVehicleSnapshot } from "./ai/vehicleMappers.js";
 import { loadConversationContext } from "./conversationContextService.js";
 import { loadGarageContext } from "./garageContextService.js";
 
-const userMessageData = (message) => ({
+const userMessageData = (message, focusedVehicle) => ({
   role: "user",
   content: message,
+  ...(focusedVehicle ? { focusedVehicle } : {}),
 });
 
 const assistantMessageData = (content) => ({
@@ -24,6 +27,7 @@ const createConversationWithFirstMessage = async ({
   title,
   primaryVehicleId,
   message,
+  focusedVehicle,
 }) => {
   const session = await mongoose.startSession();
   let result;
@@ -39,7 +43,7 @@ const createConversationWithFirstMessage = async ({
         await appendMessageToConversationWithDetails(
           conversation._id,
           userId,
-          userMessageData(message),
+          userMessageData(message, focusedVehicle),
           { session },
         );
 
@@ -55,22 +59,39 @@ const createConversationWithFirstMessage = async ({
 export const createChatService = ({
   provider = chatProvider,
   executor = toolExecutor,
+  findOwnedVehicle = getVehicleByIdForOwner,
+  appendMessage = appendMessageToConversationWithDetails,
+  conversationContextLoader = loadConversationContext,
+  garageContextLoader = loadGarageContext,
 } = {}) => ({
   async sendMessage({
     userId,
     conversationId,
     title,
     primaryVehicleId,
+    focusedVehicleId,
     message,
   }) {
+    const hasCurrentMessageFocus = focusedVehicleId !== undefined;
+    const requestedFocusId = hasCurrentMessageFocus
+      ? focusedVehicleId
+      : conversationId
+        ? undefined
+        : primaryVehicleId;
+    const focusedVehicleDocument = requestedFocusId
+      ? await findOwnedVehicle(requestedFocusId, userId)
+      : null;
+    const focusedVehicle = focusedVehicleDocument
+      ? toAIFocusedVehicleSnapshot(focusedVehicleDocument)
+      : null;
     let result;
 
     if (conversationId) {
       const { conversation, message: userMessage } =
-        await appendMessageToConversationWithDetails(
+        await appendMessage(
           conversationId,
           userId,
-          userMessageData(message),
+          userMessageData(message, focusedVehicle),
         );
 
       result = { conversation, userMessage };
@@ -80,17 +101,23 @@ export const createChatService = ({
         title,
         primaryVehicleId,
         message,
+        focusedVehicle,
       });
     }
 
+    const garageFocusId =
+      requestedFocusId !== undefined
+        ? requestedFocusId
+        : result.conversation.primaryVehicleId;
+
     const [conversationContext, garage] = await Promise.all([
-      loadConversationContext({
+      conversationContextLoader({
         conversationId: result.conversation._id,
         userId,
       }),
-      loadGarageContext({
+      garageContextLoader({
         userId,
-        focusedVehicleId: result.conversation.primaryVehicleId,
+        focusedVehicleId: garageFocusId,
       }),
     ]);
     const context = { ...conversationContext, garage };
@@ -101,7 +128,7 @@ export const createChatService = ({
       ...context,
     });
     const { conversation, message: assistantMessage } =
-      await appendMessageToConversationWithDetails(
+      await appendMessage(
         result.conversation._id,
         userId,
         assistantMessageData(assistantContent),

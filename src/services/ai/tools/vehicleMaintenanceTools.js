@@ -4,19 +4,12 @@ import {
   getGarageVehiclesByOwner,
   getVehicleByIdForOwner,
 } from "../../../models/vehicleModel.js";
+import { toAIVehicleOverview } from "../vehicleMappers.js";
 
 export const DEFAULT_MAINTENANCE_LIMIT = 10;
 export const MAX_MAINTENANCE_LIMIT = 20;
 
 const objectIdPattern = /^[a-fA-F0-9]{24}$/;
-
-const compactVehicle = (vehicle) => ({
-  id: vehicle._id.toString(),
-  manufacturer: vehicle.manufacturer,
-  model: vehicle.model,
-  year: vehicle.year,
-  currentMileage: vehicle.currentMileage,
-});
 
 const compactMaintenance = (maintenance) => ({
   id: maintenance._id.toString(),
@@ -42,12 +35,12 @@ export const createVehicleMaintenanceTools = ({
   const getMyVehicles = defineTool({
     name: "get_my_vehicles",
     description:
-      "Lists the authenticated user's current vehicles using compact identifying details.",
+      "Returns a compact overview of the authenticated user's vehicles for identification and basic cross-vehicle questions, including license plate, mileage, and stored vehicle license/test validity.",
     argsSchema: z.object({}),
     execute: async ({ userId }) => {
       const vehicles = await listVehicles(userId);
 
-      return { vehicles: vehicles.map(compactVehicle) };
+      return { vehicles: vehicles.map(toAIVehicleOverview) };
     },
   });
 

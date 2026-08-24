@@ -27,10 +27,12 @@ export const getGarageVehiclesByOwner = (userId) =>
   Vehicle.find({ owner: userId })
     .select({
       _id: 1,
+      licensePlate: 1,
       manufacturer: 1,
       model: 1,
       year: 1,
       currentMileage: 1,
+      vehicleLicenseValidUntil: 1,
     })
     .sort({ _id: 1 })
     .lean();

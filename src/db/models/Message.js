@@ -1,6 +1,28 @@
 import mongoose from "mongoose";
 import { MESSAGE_ROLES } from "../../constants/conversation.js";
 
+const focusedVehicleSchema = new mongoose.Schema(
+  {
+    id: {
+      type: String,
+      required: true,
+    },
+    manufacturer: {
+      type: String,
+      required: true,
+    },
+    model: {
+      type: String,
+      required: true,
+    },
+    licensePlate: {
+      type: String,
+      required: true,
+    },
+  },
+  { _id: false },
+);
+
 const messageSchema = new mongoose.Schema(
   {
     conversationId: {
@@ -17,6 +39,10 @@ const messageSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
+    },
+    focusedVehicle: {
+      type: focusedVehicleSchema,
+      immutable: true,
     },
   },
   { timestamps: { createdAt: true, updatedAt: false } },

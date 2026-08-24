@@ -3,6 +3,7 @@ import {
   PROVIDER_ERROR_CODES,
   ProviderError,
 } from "./providerError.js";
+import { toAIVehicleOverview } from "./vehicleMappers.js";
 
 const timeoutStatuses = new Set([408, 504]);
 const configurationStatuses = new Set([400, 401, 403, 404]);
@@ -136,15 +137,7 @@ const createGarageSystemInstruction = ({
 } = {}) => {
   const garage = {
     focusedVehicleId,
-    vehicles: vehicles.map(
-      ({ id, manufacturer, model, year, currentMileage }) => ({
-        id,
-        manufacturer,
-        model,
-        year,
-        currentMileage,
-      }),
-    ),
+    vehicles: vehicles.map(toAIVehicleOverview),
   };
   const { currentDate, currentLocalTime } = getCurrentIsraelDateTime();
 

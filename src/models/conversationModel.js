@@ -101,9 +101,15 @@ const appendMessageInSession = async (
     userId,
     session,
   );
-  const { role, content } = messageData;
+  const { role, content, focusedVehicle } = messageData;
+  const persistedMessage = {
+    conversationId: conversation._id,
+    role,
+    content,
+    ...(focusedVehicle ? { focusedVehicle } : {}),
+  };
   const [message] = await Message.create(
-    [{ conversationId: conversation._id, role, content }],
+    [persistedMessage],
     { session },
   );
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { createVehicleDetailTools } from "./tools/vehicleDetailTools.js";
 import { createVehicleMaintenanceTools } from "./tools/vehicleMaintenanceTools.js";
 import { createVehicleReminderTools } from "./tools/vehicleReminderTools.js";
 
@@ -49,6 +50,7 @@ export const toProviderToolDefinitions = (tools) =>
 export const registeredTools = Object.freeze(
   [
     ...createVehicleMaintenanceTools({ defineTool }),
+    ...createVehicleDetailTools({ defineTool }),
     ...createVehicleReminderTools({ defineTool }),
   ],
 );
