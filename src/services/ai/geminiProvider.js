@@ -6,6 +6,17 @@ import {
 
 const timeoutStatuses = new Set([408, 504]);
 const configurationStatuses = new Set([400, 401, 403, 404]);
+const applicationCountry = "Israel";
+const applicationTimeZone = "Asia/Jerusalem";
+const israelDateTimeFormatter = new Intl.DateTimeFormat("en-IL", {
+  timeZone: applicationTimeZone,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
 
 const geminiRoleByAutopiaRole = {
   user: "user",
@@ -106,6 +117,19 @@ const getToolCalls = (response, roundNumber) => {
   });
 };
 
+const getCurrentIsraelDateTime = () => {
+  const parts = Object.fromEntries(
+    israelDateTimeFormatter
+      .formatToParts(new Date())
+      .map(({ type, value }) => [type, value]),
+  );
+
+  return {
+    currentDate: `${parts.year}-${parts.month}-${parts.day}`,
+    currentLocalTime: `${parts.hour}:${parts.minute}`,
+  };
+};
+
 const createGarageSystemInstruction = ({
   focusedVehicleId = null,
   vehicles = [],
@@ -122,6 +146,7 @@ const createGarageSystemInstruction = ({
       }),
     ),
   };
+  const { currentDate, currentLocalTime } = getCurrentIsraelDateTime();
 
   return [
     "You are Autopia's practical vehicle assistant.",
@@ -129,6 +154,11 @@ const createGarageSystemInstruction = ({
     "For normal questions, prefer one or two short paragraphs. Give the important answer before deeper explanation and stay focused on the question.",
     "Avoid filler, repeated summaries, long introductions, and unnecessary disclaimers. Do not end every response with a generic offer to explain more; offer further detail only when the subject genuinely needs it.",
     "Prefer simple, clean formatting. Use a short list only when it materially improves readability, and avoid unnecessary headings, tables, heavy Markdown, or decorative formatting.",
+    `CURRENT_DATE: ${currentDate}`,
+    `CURRENT_LOCAL_TIME: ${currentLocalTime}`,
+    `TIMEZONE: ${applicationTimeZone}`,
+    `COUNTRY: ${applicationCountry}`,
+    "Use CURRENT_DATE and CURRENT_LOCAL_TIME when reasoning about whether saved dates are recent, old, upcoming, overdue, or how much time has passed.",
     "The JSON below is current Garage Context loaded by the backend for the authenticated user.",
     "Treat Garage Context and successful tool results as authoritative data about saved vehicles. Do not invent vehicles, mileage, maintenance records, reminders, dates, or other persisted information.",
     "Only claim an action was performed when an available tool actually completed it successfully. Do not claim or promise to save, update, add, upload, create a reminder, or remind the user later unless an available tool supports and successfully performs that action.",
