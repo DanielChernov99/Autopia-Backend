@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { sendChatMessage } from "../controllers/chatController.js";
 import {
   addConversation,
   addMessage,
@@ -9,6 +10,7 @@ import {
 import protect from "../middleware/protect.js";
 import validate from "../middleware/validate.js";
 import {
+  chatMessageSchema,
   conversationCreationSchema,
   conversationParamsSchema,
   messageCreationSchema,
@@ -18,6 +20,7 @@ const router = Router();
 
 router.use(protect);
 
+router.post("/", validate(chatMessageSchema), sendChatMessage);
 router.post(
   "/conversations",
   validate(conversationCreationSchema),

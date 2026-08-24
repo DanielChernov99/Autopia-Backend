@@ -27,14 +27,29 @@ const findConversationByIdForUser = async (
   return conversation;
 };
 
-export const createConversation = async (userId, conversationData) => {
+export const createConversation = async (
+  userId,
+  conversationData,
+  { session } = {},
+) => {
   const { primaryVehicleId = null, title } = conversationData;
 
   if (primaryVehicleId !== null) {
-    await getVehicleByIdForOwner(primaryVehicleId, userId);
+    await getVehicleByIdForOwner(primaryVehicleId, userId, { session });
   }
 
-  return Conversation.create({ userId, primaryVehicleId, title });
+  const conversationDataWithOwner = { userId, primaryVehicleId, title };
+
+  if (!session) {
+    return Conversation.create(conversationDataWithOwner);
+  }
+
+  const [conversation] = await Conversation.create(
+    [conversationDataWithOwner],
+    { session },
+  );
+
+  return conversation;
 };
 
 export const getConversationsByUser = (userId) =>
@@ -57,37 +72,75 @@ export const getMessagesByConversationForUser = async (
   });
 };
 
+const appendMessageInSession = async (
+  conversationId,
+  userId,
+  messageData,
+  session,
+) => {
+  const conversation = await findConversationByIdForUser(
+    conversationId,
+    userId,
+    session,
+  );
+  const { role, content } = messageData;
+  const [message] = await Message.create(
+    [{ conversationId: conversation._id, role, content }],
+    { session },
+  );
+
+  conversation.lastMessageAt = message.createdAt;
+  await conversation.save({ session });
+
+  return { conversation, message };
+};
+
+export const appendMessageToConversationWithDetails = async (
+  conversationId,
+  userId,
+  messageData,
+  { session: existingSession } = {},
+) => {
+  if (existingSession) {
+    return appendMessageInSession(
+      conversationId,
+      userId,
+      messageData,
+      existingSession,
+    );
+  }
+
+  const session = await mongoose.startSession();
+  let result;
+
+  try {
+    await session.withTransaction(async () => {
+      result = await appendMessageInSession(
+        conversationId,
+        userId,
+        messageData,
+        session,
+      );
+    });
+
+    return result;
+  } finally {
+    await session.endSession();
+  }
+};
+
 export const appendMessageToConversation = async (
   conversationId,
   userId,
   messageData,
 ) => {
-  const session = await mongoose.startSession();
-  let createdMessage;
+  const { message } = await appendMessageToConversationWithDetails(
+    conversationId,
+    userId,
+    messageData,
+  );
 
-  try {
-    await session.withTransaction(async () => {
-      const conversation = await findConversationByIdForUser(
-        conversationId,
-        userId,
-        session,
-      );
-      const { role, content } = messageData;
-      const [message] = await Message.create(
-        [{ conversationId: conversation._id, role, content }],
-        { session },
-      );
-
-      conversation.lastMessageAt = message.createdAt;
-      await conversation.save({ session });
-
-      createdMessage = message;
-    });
-
-    return createdMessage;
-  } finally {
-    await session.endSession();
-  }
+  return message;
 };
 
 export const deleteConversationForUser = async (conversationId, userId) => {

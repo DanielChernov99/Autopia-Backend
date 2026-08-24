@@ -23,8 +23,18 @@ export const createVehicle = async (userId, vehicleData) => {
 
 export const getVehiclesByOwner = (userId) => Vehicle.find({ owner: userId });
 
-export const getVehicleByIdForOwner = async (vehicleId, userId) => {
-  const vehicle = await Vehicle.findOne({ _id: vehicleId, owner: userId });
+export const getVehicleByIdForOwner = async (
+  vehicleId,
+  userId,
+  { session } = {},
+) => {
+  const query = Vehicle.findOne({ _id: vehicleId, owner: userId });
+
+  if (session) {
+    query.session(session);
+  }
+
+  const vehicle = await query;
 
   if (!vehicle) {
     throw vehicleNotFound();
