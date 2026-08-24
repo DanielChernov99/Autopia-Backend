@@ -9,7 +9,7 @@ import errorHandler from "./middleware/errorHandler.js";
 
 const app = express();
 
-app.use(morgan("dev"));
+app.use(morgan("dev", { skip: (req) => req.path === "/api/health" }));
 app.use(cors());
 app.use(express.json());
 
