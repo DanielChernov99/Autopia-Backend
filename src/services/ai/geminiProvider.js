@@ -45,9 +45,16 @@ const toGeminiToolDeclarations = (tools) =>
 const toGeminiToolRoundContents = ({ toolCalls, toolResults }) => [
   {
     role: "model",
-    parts: toolCalls.map(({ id, name, args }) => ({
-      functionCall: { id, name, args },
-    })),
+    parts: toolCalls.map(({ id, name, args, providerMetadata }) => {
+      const thoughtSignature = providerMetadata?.thoughtSignature;
+
+      return {
+        functionCall: { id, name, args },
+        ...(typeof thoughtSignature === "string" && thoughtSignature.length > 0
+          ? { thoughtSignature }
+          : {}),
+      };
+    }),
   },
   {
     role: "user",
@@ -62,7 +69,14 @@ const toGeminiToolRoundContents = ({ toolCalls, toolResults }) => [
 ];
 
 const getToolCalls = (response, roundNumber) => {
-  const functionCalls = response?.functionCalls;
+  const responseParts = response?.candidates?.[0]?.content?.parts;
+  const functionCallParts = Array.isArray(responseParts)
+    ? responseParts.filter(({ functionCall }) => functionCall)
+    : [];
+  const functionCalls =
+    functionCallParts.length > 0
+      ? functionCallParts.map(({ functionCall }) => functionCall)
+      : response?.functionCalls;
 
   if (!Array.isArray(functionCalls) || functionCalls.length === 0) {
     return null;
@@ -78,10 +92,16 @@ const getToolCalls = (response, roundNumber) => {
       throw new ProviderError(PROVIDER_ERROR_CODES.INVALID_RESPONSE);
     }
 
+    // Gemini 3 requires this opaque part-level signature on continuation.
+    const thoughtSignature = functionCallParts[index]?.thoughtSignature;
+
     return {
       id: id ?? `tool-call-${roundNumber}-${index + 1}`,
       name,
       args: args ?? {},
+      ...(typeof thoughtSignature === "string" && thoughtSignature.length > 0
+        ? { providerMetadata: { thoughtSignature } }
+        : {}),
     };
   });
 };
