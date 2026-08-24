@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createVehicleMaintenanceTools } from "./tools/vehicleMaintenanceTools.js";
+import { createVehicleReminderTools } from "./tools/vehicleReminderTools.js";
 
 const toolNamePattern = /^[A-Za-z_][A-Za-z0-9_.:-]{0,127}$/;
 const reservedIdentityFields = new Set(["userId", "owner", "ownerId"]);
@@ -46,5 +47,8 @@ export const toProviderToolDefinitions = (tools) =>
   }));
 
 export const registeredTools = Object.freeze(
-  createVehicleMaintenanceTools({ defineTool }),
+  [
+    ...createVehicleMaintenanceTools({ defineTool }),
+    ...createVehicleReminderTools({ defineTool }),
+  ],
 );

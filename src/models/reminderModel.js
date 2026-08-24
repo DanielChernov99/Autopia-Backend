@@ -22,6 +22,19 @@ export const createReminder = async (vehicleId, reminderData) => {
 export const getRemindersByVehicle = (vehicleId) =>
   Reminder.find({ vehicleId }).sort({ dueDate: 1 });
 
+export const getBoundedRemindersByVehicle = (vehicleId, limit) =>
+  Reminder.find({ vehicleId })
+    .select({
+      _id: 1,
+      title: 1,
+      type: 1,
+      dueDate: 1,
+      frequency: 1,
+    })
+    .sort({ dueDate: 1 })
+    .limit(limit)
+    .lean();
+
 export const getReminderByIdForVehicle = async (reminderId, vehicleId) => {
   const reminder = await Reminder.findOne({ _id: reminderId, vehicleId });
 
