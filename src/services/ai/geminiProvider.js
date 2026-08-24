@@ -35,6 +35,57 @@ const getResponseContent = (response) => {
   return content;
 };
 
+const toGeminiToolDeclarations = (tools) =>
+  tools.map(({ name, description, parameters }) => ({
+    name,
+    description,
+    parametersJsonSchema: parameters,
+  }));
+
+const toGeminiToolRoundContents = ({ toolCalls, toolResults }) => [
+  {
+    role: "model",
+    parts: toolCalls.map(({ id, name, args }) => ({
+      functionCall: { id, name, args },
+    })),
+  },
+  {
+    role: "user",
+    parts: toolResults.map(({ toolCallId, name, result }) => ({
+      functionResponse: {
+        id: toolCallId,
+        name,
+        response: { output: result },
+      },
+    })),
+  },
+];
+
+const getToolCalls = (response, roundNumber) => {
+  const functionCalls = response?.functionCalls;
+
+  if (!Array.isArray(functionCalls) || functionCalls.length === 0) {
+    return null;
+  }
+
+  return functionCalls.map(({ id, name, args }, index) => {
+    if (
+      typeof name !== "string" ||
+      name.length === 0 ||
+      (args !== undefined &&
+        (args === null || typeof args !== "object" || Array.isArray(args)))
+    ) {
+      throw new ProviderError(PROVIDER_ERROR_CODES.INVALID_RESPONSE);
+    }
+
+    return {
+      id: id ?? `tool-call-${roundNumber}-${index + 1}`,
+      name,
+      args: args ?? {},
+    };
+  });
+};
+
 const createGarageSystemInstruction = ({
   focusedVehicleId = null,
   vehicles = [],
@@ -97,21 +148,48 @@ const normalizeGeminiError = (error) => {
 export const createGeminiClient = ({ apiKey }) => new GoogleGenAI({ apiKey });
 
 export const createGeminiProvider = ({ client, model, timeoutMs }) => ({
-  async generateResponse({ messages, garage }) {
-    const contents = messages.map(toGeminiContent);
+  async generateResponse({
+    messages,
+    garage,
+    tools = [],
+    toolRounds = [],
+  }) {
+    const contents = [
+      ...messages.map(toGeminiContent),
+      ...toolRounds.flatMap(toGeminiToolRoundContents),
+    ];
     const systemInstruction = createGarageSystemInstruction(garage);
+    const config = {
+      systemInstruction,
+      httpOptions: { timeout: timeoutMs },
+      ...(tools.length > 0
+        ? {
+            tools: [
+              {
+                functionDeclarations: toGeminiToolDeclarations(tools),
+              },
+            ],
+          }
+        : {}),
+    };
 
     try {
       const response = await client.models.generateContent({
         model,
         contents,
-        config: {
-          systemInstruction,
-          httpOptions: { timeout: timeoutMs },
-        },
+        config,
       });
+      const toolCalls = getToolCalls(response, toolRounds.length + 1);
+
+      if (toolCalls) {
+        return {
+          type: "tool_calls",
+          toolCalls,
+        };
+      }
 
       return {
+        type: "message",
         content: getResponseContent(response),
       };
     } catch (error) {

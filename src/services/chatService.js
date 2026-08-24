@@ -4,6 +4,8 @@ import {
   createConversation,
 } from "../models/conversationModel.js";
 import { chatProvider } from "./ai/provider.js";
+import { toolExecutor } from "./ai/toolExecutor.js";
+import { runToolLoop } from "./ai/toolLoopService.js";
 import { loadConversationContext } from "./conversationContextService.js";
 import { loadGarageContext } from "./garageContextService.js";
 
@@ -50,51 +52,63 @@ const createConversationWithFirstMessage = async ({
   }
 };
 
-export const sendMessage = async ({
-  userId,
-  conversationId,
-  title,
-  primaryVehicleId,
-  message,
-}) => {
-  let result;
+export const createChatService = ({
+  provider = chatProvider,
+  executor = toolExecutor,
+} = {}) => ({
+  async sendMessage({
+    userId,
+    conversationId,
+    title,
+    primaryVehicleId,
+    message,
+  }) {
+    let result;
 
-  if (conversationId) {
-    const { conversation, message: userMessage } =
-      await appendMessageToConversationWithDetails(
-        conversationId,
+    if (conversationId) {
+      const { conversation, message: userMessage } =
+        await appendMessageToConversationWithDetails(
+          conversationId,
+          userId,
+          userMessageData(message),
+        );
+
+      result = { conversation, userMessage };
+    } else {
+      result = await createConversationWithFirstMessage({
         userId,
-        userMessageData(message),
+        title,
+        primaryVehicleId,
+        message,
+      });
+    }
+
+    const [conversationContext, garage] = await Promise.all([
+      loadConversationContext({
+        conversationId: result.conversation._id,
+        userId,
+      }),
+      loadGarageContext({
+        userId,
+        focusedVehicleId: result.conversation.primaryVehicleId,
+      }),
+    ]);
+    const context = { ...conversationContext, garage };
+    const assistantContent = await runToolLoop({
+      provider,
+      toolExecutor: executor,
+      userId,
+      ...context,
+    });
+    const { conversation, message: assistantMessage } =
+      await appendMessageToConversationWithDetails(
+        result.conversation._id,
+        userId,
+        assistantMessageData(assistantContent),
       );
 
-    result = { conversation, userMessage };
-  } else {
-    result = await createConversationWithFirstMessage({
-      userId,
-      title,
-      primaryVehicleId,
-      message,
-    });
-  }
+    return { ...result, conversation, assistantMessage, context };
+  },
+});
 
-  const [conversationContext, garage] = await Promise.all([
-    loadConversationContext({
-      conversationId: result.conversation._id,
-      userId,
-    }),
-    loadGarageContext({
-      userId,
-      focusedVehicleId: result.conversation.primaryVehicleId,
-    }),
-  ]);
-  const context = { ...conversationContext, garage };
-  const providerResponse = await chatProvider.generateResponse(context);
-  const { conversation, message: assistantMessage } =
-    await appendMessageToConversationWithDetails(
-      result.conversation._id,
-      userId,
-      assistantMessageData(providerResponse.content),
-    );
-
-  return { ...result, conversation, assistantMessage, context };
-};
+export const { sendMessage } = createChatService();
