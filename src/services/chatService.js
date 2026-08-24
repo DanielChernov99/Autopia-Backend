@@ -5,6 +5,7 @@ import {
 } from "../models/conversationModel.js";
 import { chatProvider } from "./ai/provider.js";
 import { loadConversationContext } from "./conversationContextService.js";
+import { loadGarageContext } from "./garageContextService.js";
 
 const userMessageData = (message) => ({
   role: "user",
@@ -76,10 +77,17 @@ export const sendMessage = async ({
     });
   }
 
-  const context = await loadConversationContext({
-    conversationId: result.conversation._id,
-    userId,
-  });
+  const [conversationContext, garage] = await Promise.all([
+    loadConversationContext({
+      conversationId: result.conversation._id,
+      userId,
+    }),
+    loadGarageContext({
+      userId,
+      focusedVehicleId: result.conversation.primaryVehicleId,
+    }),
+  ]);
+  const context = { ...conversationContext, garage };
   const providerResponse = await chatProvider.generateResponse(context);
   const { conversation, message: assistantMessage } =
     await appendMessageToConversationWithDetails(

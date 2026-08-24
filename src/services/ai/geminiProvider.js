@@ -35,6 +35,31 @@ const getResponseContent = (response) => {
   return content;
 };
 
+const createGarageSystemInstruction = ({
+  focusedVehicleId = null,
+  vehicles = [],
+} = {}) => {
+  const garage = {
+    focusedVehicleId,
+    vehicles: vehicles.map(
+      ({ id, manufacturer, model, year, currentMileage }) => ({
+        id,
+        manufacturer,
+        model,
+        year,
+        currentMileage,
+      }),
+    ),
+  };
+
+  return [
+    "You are Autopia's vehicle assistant.",
+    "The JSON below is current Garage Context loaded by the backend for the authenticated user.",
+    "focusedVehicleId is the default vehicle, but any listed vehicle may be discussed.",
+    `GARAGE_CONTEXT_JSON: ${JSON.stringify(garage)}`,
+  ].join("\n");
+};
+
 const isNativeTimeoutError = (error) =>
   error?.name === "AbortError" || error?.name === "TimeoutError";
 
@@ -68,14 +93,16 @@ const normalizeGeminiError = (error) => {
 export const createGeminiClient = ({ apiKey }) => new GoogleGenAI({ apiKey });
 
 export const createGeminiProvider = ({ client, model, timeoutMs }) => ({
-  async generateResponse({ messages }) {
+  async generateResponse({ messages, garage }) {
     const contents = messages.map(toGeminiContent);
+    const systemInstruction = createGarageSystemInstruction(garage);
 
     try {
       const response = await client.models.generateContent({
         model,
         contents,
         config: {
+          systemInstruction,
           httpOptions: { timeout: timeoutMs },
         },
       });
