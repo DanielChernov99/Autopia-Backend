@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { MESSAGE_ROLES } from "../constants/conversation.js";
+import {
+  MAX_MESSAGE_LENGTH,
+  MESSAGE_ROLES,
+} from "../constants/conversation.js";
 
 const objectIdSchema = (message) =>
   z
@@ -23,13 +26,13 @@ export const conversationParamsSchema = z
 export const messageCreationSchema = z
   .object({
     role: z.enum(MESSAGE_ROLES),
-    content: z.string().trim().min(1),
+    content: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
   })
   .strict();
 
 export const chatMessageSchema = z
   .object({
-    message: z.string().trim().min(1),
+    message: z.string().trim().min(1).max(MAX_MESSAGE_LENGTH),
     conversationId: objectIdSchema("Invalid conversation ID").optional(),
     title: z.string().trim().min(1).optional(),
     primaryVehicleId: objectIdSchema("Invalid vehicle ID")

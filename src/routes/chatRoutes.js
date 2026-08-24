@@ -8,6 +8,7 @@ import {
   getConversations,
 } from "../controllers/conversationController.js";
 import protect from "../middleware/protect.js";
+import aiChatRateLimit from "../middleware/aiChatRateLimit.js";
 import validate from "../middleware/validate.js";
 import {
   chatMessageSchema,
@@ -20,7 +21,12 @@ const router = Router();
 
 router.use(protect);
 
-router.post("/", validate(chatMessageSchema), sendChatMessage);
+router.post(
+  "/",
+  aiChatRateLimit,
+  validate(chatMessageSchema),
+  sendChatMessage,
+);
 router.post(
   "/conversations",
   validate(conversationCreationSchema),
