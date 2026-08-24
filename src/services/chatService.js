@@ -3,11 +3,17 @@ import {
   appendMessageToConversationWithDetails,
   createConversation,
 } from "../models/conversationModel.js";
+import { chatProvider } from "./ai/provider.js";
 import { loadConversationContext } from "./conversationContextService.js";
 
 const userMessageData = (message) => ({
   role: "user",
   content: message,
+});
+
+const assistantMessageData = (content) => ({
+  role: "assistant",
+  content,
 });
 
 const createConversationWithFirstMessage = async ({
@@ -74,6 +80,13 @@ export const sendMessage = async ({
     conversationId: result.conversation._id,
     userId,
   });
+  const providerResponse = await chatProvider.generateResponse(context);
+  const { conversation, message: assistantMessage } =
+    await appendMessageToConversationWithDetails(
+      result.conversation._id,
+      userId,
+      assistantMessageData(providerResponse.content),
+    );
 
-  return { ...result, context };
+  return { ...result, conversation, assistantMessage, context };
 };
