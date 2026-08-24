@@ -46,6 +46,22 @@ export const createMaintenance = async (vehicleId, maintenanceData) => {
 export const getMaintenancesByVehicle = (vehicleId) =>
   Maintenance.find({ vehicleId }).sort({ maintenanceDate: -1, createdAt: -1 });
 
+export const getRecentMaintenancesByVehicle = (vehicleId, limit) =>
+  Maintenance.find({ vehicleId })
+    .select({
+      _id: 1,
+      title: 1,
+      maintenanceDate: 1,
+      type: 1,
+      mileageAtMaintenance: 1,
+      totalCost: 1,
+      description: 1,
+      parts: 1,
+    })
+    .sort({ maintenanceDate: -1, createdAt: -1 })
+    .limit(limit)
+    .lean();
+
 export const getMaintenanceByIdForVehicle = async (
   maintenanceId,
   vehicleId,

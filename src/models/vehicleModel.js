@@ -23,6 +23,18 @@ export const createVehicle = async (userId, vehicleData) => {
 
 export const getVehiclesByOwner = (userId) => Vehicle.find({ owner: userId });
 
+export const getGarageVehiclesByOwner = (userId) =>
+  Vehicle.find({ owner: userId })
+    .select({
+      _id: 1,
+      manufacturer: 1,
+      model: 1,
+      year: 1,
+      currentMileage: 1,
+    })
+    .sort({ _id: 1 })
+    .lean();
+
 export const getVehicleByIdForOwner = async (
   vehicleId,
   userId,
