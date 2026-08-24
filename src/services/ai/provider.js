@@ -1,3 +1,3 @@
-import { stubProvider } from "./stubProvider.js";
+import { createConfiguredGeminiProvider } from "./configuredGeminiProvider.js";
 
-export const chatProvider = stubProvider;
+export const chatProvider = createConfiguredGeminiProvider();
