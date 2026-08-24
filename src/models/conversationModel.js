@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { MAX_HISTORY_MESSAGES } from "../constants/conversation.js";
 import Conversation from "../db/models/Conversation.js";
 import Message from "../db/models/Message.js";
 import AppError from "../utils/AppError.js";
@@ -70,6 +71,23 @@ export const getMessagesByConversationForUser = async (
   return Message.find({ conversationId: conversation._id }).sort({
     createdAt: 1,
   });
+};
+
+export const getRecentMessagesByConversationForUser = async (
+  conversationId,
+  userId,
+) => {
+  const conversation = await findConversationByIdForUser(
+    conversationId,
+    userId,
+  );
+  const messages = await Message.find({ conversationId: conversation._id })
+    .select({ role: 1, content: 1, _id: 0 })
+    .sort({ createdAt: -1 })
+    .limit(MAX_HISTORY_MESSAGES)
+    .lean();
+
+  return messages.reverse();
 };
 
 const appendMessageInSession = async (

@@ -3,30 +3,19 @@ import {
   appendMessageToConversationWithDetails,
   createConversation,
 } from "../models/conversationModel.js";
+import { loadConversationContext } from "./conversationContextService.js";
 
 const userMessageData = (message) => ({
   role: "user",
   content: message,
 });
 
-export const sendMessage = async ({
+const createConversationWithFirstMessage = async ({
   userId,
-  conversationId,
   title,
   primaryVehicleId,
   message,
 }) => {
-  if (conversationId) {
-    const { conversation, message: userMessage } =
-      await appendMessageToConversationWithDetails(
-        conversationId,
-        userId,
-        userMessageData(message),
-      );
-
-    return { conversation, userMessage };
-  }
-
   const session = await mongoose.startSession();
   let result;
 
@@ -52,4 +41,39 @@ export const sendMessage = async ({
   } finally {
     await session.endSession();
   }
+};
+
+export const sendMessage = async ({
+  userId,
+  conversationId,
+  title,
+  primaryVehicleId,
+  message,
+}) => {
+  let result;
+
+  if (conversationId) {
+    const { conversation, message: userMessage } =
+      await appendMessageToConversationWithDetails(
+        conversationId,
+        userId,
+        userMessageData(message),
+      );
+
+    result = { conversation, userMessage };
+  } else {
+    result = await createConversationWithFirstMessage({
+      userId,
+      title,
+      primaryVehicleId,
+      message,
+    });
+  }
+
+  const context = await loadConversationContext({
+    conversationId: result.conversation._id,
+    userId,
+  });
+
+  return { ...result, context };
 };
