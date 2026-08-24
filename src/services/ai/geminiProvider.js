@@ -1,4 +1,11 @@
-import { GoogleGenAI } from "@google/genai";
+import { ApiError, GoogleGenAI } from "@google/genai";
+import {
+  PROVIDER_ERROR_CODES,
+  ProviderError,
+} from "./providerError.js";
+
+const timeoutStatuses = new Set([408, 504]);
+const configurationStatuses = new Set([400, 401, 403, 404]);
 
 const geminiRoleByAutopiaRole = {
   user: "user",
@@ -22,23 +29,62 @@ const getResponseContent = (response) => {
   const content = response?.text;
 
   if (typeof content !== "string" || content.trim().length === 0) {
-    throw new Error("Gemini returned no text content");
+    throw new ProviderError(PROVIDER_ERROR_CODES.INVALID_RESPONSE);
   }
 
   return content;
 };
 
+const isNativeTimeoutError = (error) =>
+  error?.name === "AbortError" || error?.name === "TimeoutError";
+
+const normalizeGeminiError = (error) => {
+  if (error instanceof ProviderError) {
+    return error;
+  }
+
+  const upstreamStatus = error instanceof ApiError ? error.status : undefined;
+
+  if (timeoutStatuses.has(upstreamStatus) || isNativeTimeoutError(error)) {
+    return new ProviderError(PROVIDER_ERROR_CODES.TIMEOUT, {
+      cause: error,
+      upstreamStatus,
+    });
+  }
+
+  if (configurationStatuses.has(upstreamStatus)) {
+    return new ProviderError(PROVIDER_ERROR_CODES.CONFIGURATION, {
+      cause: error,
+      upstreamStatus,
+    });
+  }
+
+  return new ProviderError(PROVIDER_ERROR_CODES.UNAVAILABLE, {
+    cause: error,
+    upstreamStatus,
+  });
+};
+
 export const createGeminiClient = ({ apiKey }) => new GoogleGenAI({ apiKey });
 
-export const createGeminiProvider = ({ client, model }) => ({
+export const createGeminiProvider = ({ client, model, timeoutMs }) => ({
   async generateResponse({ messages }) {
-    const response = await client.models.generateContent({
-      model,
-      contents: messages.map(toGeminiContent),
-    });
+    const contents = messages.map(toGeminiContent);
 
-    return {
-      content: getResponseContent(response),
-    };
+    try {
+      const response = await client.models.generateContent({
+        model,
+        contents,
+        config: {
+          httpOptions: { timeout: timeoutMs },
+        },
+      });
+
+      return {
+        content: getResponseContent(response),
+      };
+    } catch (error) {
+      throw normalizeGeminiError(error);
+    }
   },
 });
