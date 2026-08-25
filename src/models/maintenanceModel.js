@@ -4,7 +4,7 @@ import AppError from "../utils/AppError.js";
 
 const maintenanceNotFound = () => new AppError("Maintenance not found", 404);
 
-export const syncVehicleMetricsOnMaintenance = async (vehicleId, maintenanceData) => {
+const syncVehicleMetricsOnMaintenance = async (vehicleId, maintenanceData) => {
   const vehicle = await Vehicle.findById(vehicleId);
   if (!vehicle) return null;
 

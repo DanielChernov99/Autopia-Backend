@@ -56,7 +56,7 @@ const createConversationWithFirstMessage = async ({
   }
 };
 
-export const createChatService = ({
+const createChatService = ({
   provider = chatProvider,
   executor = toolExecutor,
   findOwnedVehicle = getVehicleByIdForOwner,

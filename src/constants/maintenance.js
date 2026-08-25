@@ -6,16 +6,6 @@ export const MAINTENANCE_TYPES = [
   "other",
 ];
 
-export const MAINTENANCE_ACTIONS = [
-  "replace",
-  "repair",
-  "inspect",
-  "clean",
-  "refill",
-  "adjust",
-  "other",
-];
-
 export const MAINTENANCE_PARTS = [
   "engineOil",
   "oilFilter",
