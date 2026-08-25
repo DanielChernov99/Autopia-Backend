@@ -7,7 +7,7 @@ import AppError from "../utils/AppError.js";
 const rateLimitError = () =>
   new AppError("Too many AI chat requests. Please try again later.", 429);
 
-export const createAiChatRateLimit = ({
+const createAiChatRateLimit = ({
   windowMs = AI_CHAT_RATE_LIMIT_WINDOW_MS,
   maxRequests = AI_CHAT_RATE_LIMIT_MAX_REQUESTS,
   now = Date.now,

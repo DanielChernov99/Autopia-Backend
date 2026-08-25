@@ -3,7 +3,7 @@ import {
   ProviderError,
 } from "../services/ai/providerError.js";
 
-export const DEFAULT_GEMINI_TIMEOUT_MS = 30000;
+const DEFAULT_GEMINI_TIMEOUT_MS = 30000;
 
 const configurationError = (reason) =>
   new ProviderError(PROVIDER_ERROR_CODES.CONFIGURATION, {

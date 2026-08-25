@@ -6,8 +6,8 @@ import {
 } from "../../../models/vehicleModel.js";
 import { toAIVehicleOverview } from "../vehicleMappers.js";
 
-export const DEFAULT_MAINTENANCE_LIMIT = 10;
-export const MAX_MAINTENANCE_LIMIT = 20;
+const DEFAULT_MAINTENANCE_LIMIT = 10;
+const MAX_MAINTENANCE_LIMIT = 20;
 
 const objectIdPattern = /^[a-fA-F0-9]{24}$/;
 

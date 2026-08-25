@@ -2,8 +2,8 @@ import { z } from "zod";
 import { getBoundedRemindersByVehicle } from "../../../models/reminderModel.js";
 import { getVehicleByIdForOwner } from "../../../models/vehicleModel.js";
 
-export const DEFAULT_REMINDER_LIMIT = 10;
-export const MAX_REMINDER_LIMIT = 20;
+const DEFAULT_REMINDER_LIMIT = 10;
+const MAX_REMINDER_LIMIT = 20;
 
 const objectIdPattern = /^[a-fA-F0-9]{24}$/;
 

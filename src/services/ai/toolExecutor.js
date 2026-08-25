@@ -28,7 +28,7 @@ const normalizeResult = (result) => {
   }
 };
 
-export const createToolExecutor = ({ tools = registeredTools } = {}) => {
+const createToolExecutor = ({ tools = registeredTools } = {}) => {
   const toolByName = new Map();
 
   for (const tool of tools) {

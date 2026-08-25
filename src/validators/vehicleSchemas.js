@@ -57,11 +57,6 @@ export const manualVehicleCreationSchema = z
   })
   .strict();
 
-export const governmentAssistedVehicleCreationSchema = z.object({
-  licensePlate: licensePlateSchema,
-  currentMileage: requiredNumber(z.number().min(0)),
-});
-
 export const vehicleUpdateSchema = z
   .object({
     ...editableVehicleFields,
