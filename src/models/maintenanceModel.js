@@ -1,46 +1,71 @@
+import mongoose from "mongoose";
 import Maintenance from "../db/models/Maintenance.js";
 import Vehicle from "../db/models/Vehicle.js";
 import AppError from "../utils/AppError.js";
 
 const maintenanceNotFound = () => new AppError("Maintenance not found", 404);
+const vehicleNotFound = () => new AppError("Vehicle not found", 404);
 
-const syncVehicleMetricsOnMaintenance = async (vehicleId, maintenanceData) => {
-  const vehicle = await Vehicle.findById(vehicleId);
-  if (!vehicle) return null;
-
-  let hasUpdates = false;
+const syncVehicleMetricsOnMaintenance = async (
+  vehicleId,
+  maintenanceData,
+  session,
+) => {
+  const maximums = {};
 
   if (
     maintenanceData.mileageAtMaintenance !== undefined &&
-    maintenanceData.mileageAtMaintenance !== null &&
-    Number(maintenanceData.mileageAtMaintenance) > Number(vehicle.currentMileage || 0)
+    maintenanceData.mileageAtMaintenance !== null
   ) {
-    vehicle.currentMileage = Number(maintenanceData.mileageAtMaintenance);
-    hasUpdates = true;
+    maximums.currentMileage = maintenanceData.mileageAtMaintenance;
   }
 
   if (maintenanceData.maintenanceDate) {
-    const newDate = new Date(maintenanceData.maintenanceDate);
-    if (
-      !vehicle.lastMaintenanceDate ||
-      newDate >= new Date(vehicle.lastMaintenanceDate)
-    ) {
-      vehicle.lastMaintenanceDate = newDate;
-      hasUpdates = true;
-    }
+    maximums.lastMaintenanceDate = new Date(maintenanceData.maintenanceDate);
   }
 
-  if (hasUpdates) {
-    await vehicle.save();
+  let vehicle;
+
+  if (Object.keys(maximums).length > 0) {
+    vehicle = await Vehicle.findByIdAndUpdate(
+      vehicleId,
+      { $max: maximums },
+      { new: true, runValidators: true, session },
+    );
+  } else {
+    vehicle = await Vehicle.findById(vehicleId).session(session);
+  }
+
+  if (!vehicle) {
+    throw vehicleNotFound();
   }
 
   return vehicle;
 };
 
 export const createMaintenance = async (vehicleId, maintenanceData) => {
-  const maintenance = await Maintenance.create({ ...maintenanceData, vehicleId });
-  const vehicle = await syncVehicleMetricsOnMaintenance(vehicleId, maintenanceData);
-  return { maintenance, vehicle };
+  const session = await mongoose.startSession();
+  let result;
+
+  try {
+    await session.withTransaction(async () => {
+      const [maintenance] = await Maintenance.create(
+        [{ ...maintenanceData, vehicleId }],
+        { session },
+      );
+      const vehicle = await syncVehicleMetricsOnMaintenance(
+        vehicleId,
+        maintenanceData,
+        session,
+      );
+
+      result = { maintenance, vehicle };
+    });
+
+    return result;
+  } finally {
+    await session.endSession();
+  }
 };
 
 export const getMaintenancesByVehicle = (vehicleId) =>
@@ -83,19 +108,67 @@ export const updateMaintenanceForVehicle = async (
   vehicleId,
   updateData,
 ) => {
-  const maintenance = await Maintenance.findOneAndUpdate(
-    { _id: maintenanceId, vehicleId },
-    updateData,
-    { new: true, runValidators: true },
-  );
+  const session = await mongoose.startSession();
+  let result;
 
-  if (!maintenance) {
-    throw maintenanceNotFound();
+  try {
+    await session.withTransaction(async () => {
+      const existingMaintenance = await Maintenance.findOne({
+        _id: maintenanceId,
+        vehicleId,
+      }).session(session);
+
+      if (!existingMaintenance) {
+        throw maintenanceNotFound();
+      }
+
+      const hasMileageUpdate = Object.hasOwn(
+        updateData,
+        "mileageAtMaintenance",
+      );
+      const previousMileage = existingMaintenance.mileageAtMaintenance ?? null;
+      const nextMileage = updateData.mileageAtMaintenance ?? null;
+      const mileageChanged =
+        hasMileageUpdate && previousMileage !== nextMileage;
+      const fieldsToSet = { ...updateData };
+      const update = {};
+
+      if (hasMileageUpdate && nextMileage === null) {
+        delete fieldsToSet.mileageAtMaintenance;
+        update.$unset = { mileageAtMaintenance: 1 };
+      }
+
+      if (Object.keys(fieldsToSet).length > 0) {
+        update.$set = fieldsToSet;
+      }
+
+      const maintenance = await Maintenance.findOneAndUpdate(
+        { _id: maintenanceId, vehicleId },
+        update,
+        { new: true, runValidators: true, session },
+      );
+
+      if (!maintenance) {
+        throw maintenanceNotFound();
+      }
+
+      const vehicle = await syncVehicleMetricsOnMaintenance(
+        vehicleId,
+        {
+          maintenanceDate: updateData.maintenanceDate,
+          mileageAtMaintenance:
+            mileageChanged && nextMileage !== null ? nextMileage : undefined,
+        },
+        session,
+      );
+
+      result = { maintenance, vehicle };
+    });
+
+    return result;
+  } finally {
+    await session.endSession();
   }
-
-  const vehicle = await syncVehicleMetricsOnMaintenance(vehicleId, updateData);
-
-  return { maintenance, vehicle };
 };
 
 export const deleteMaintenanceForVehicle = async (maintenanceId, vehicleId) => {

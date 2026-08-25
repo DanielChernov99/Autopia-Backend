@@ -24,6 +24,40 @@ const requiredNumber = (schema) =>
     schema,
   );
 
+const mileageNumberSchema = z
+  .number()
+  .int()
+  .min(0)
+  .max(Number.MAX_SAFE_INTEGER);
+
+const optionalMileage = z.preprocess(
+  (value) => {
+    if (
+      value === null ||
+      (typeof value === "string" && value.trim() === "")
+    ) {
+      return undefined;
+    }
+
+    return typeof value === "string" ? Number(value.trim()) : value;
+  },
+  mileageNumberSchema.optional(),
+);
+
+const clearableOptionalMileage = z.preprocess(
+  (value) => {
+    if (
+      value === null ||
+      (typeof value === "string" && value.trim() === "")
+    ) {
+      return null;
+    }
+
+    return typeof value === "string" ? Number(value.trim()) : value;
+  },
+  mileageNumberSchema.nullable().optional(),
+);
+
 const maintenanceDateSchema = z.preprocess(
   (value) =>
     value === null || (typeof value === "string" && value.trim() === "")
@@ -47,7 +81,7 @@ const editableMaintenanceFields = {
   title: z.string().trim().min(1),
   maintenanceDate: maintenanceDateSchema,
   type: z.enum(MAINTENANCE_TYPES),
-  mileageAtMaintenance: optionalNumber(z.coerce.number().min(0)),
+  mileageAtMaintenance: optionalMileage,
   totalCost: requiredNumber(z.coerce.number().min(0)),
   description: z.string().trim().optional(),
   parts: z
@@ -64,7 +98,10 @@ export const maintenanceCreationSchema = z
   .strict();
 
 export const maintenanceUpdateSchema = z
-  .object(editableMaintenanceFields)
+  .object({
+    ...editableMaintenanceFields,
+    mileageAtMaintenance: clearableOptionalMileage,
+  })
   .partial()
   .strict()
   .refine((update) => Object.keys(update).length > 0, {

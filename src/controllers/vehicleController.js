@@ -1,4 +1,5 @@
 import {
+  advanceVehicleMileageForOwner,
   createVehicle,
   deleteVehicleForOwner,
   getVehicleByIdForOwner,
@@ -61,6 +62,22 @@ export const updateVehicle = async (req, res) => {
   const userId = req.user.id;
   const { vehicleId } = req.params;
   const vehicle = await updateVehicleForOwner(vehicleId, userId, req.body);
+
+  res.status(200).json({
+    success: true,
+    data: { vehicle },
+  });
+};
+
+export const advanceVehicleMileage = async (req, res) => {
+  const userId = req.user.id;
+  const { vehicleId } = req.params;
+  const { currentMileage } = req.body;
+  const vehicle = await advanceVehicleMileageForOwner(
+    vehicleId,
+    userId,
+    currentMileage,
+  );
 
   res.status(200).json({
     success: true,

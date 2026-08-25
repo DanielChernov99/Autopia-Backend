@@ -75,6 +75,37 @@ export const updateVehicleForOwner = async (
   return vehicle;
 };
 
+export const advanceVehicleMileageForOwner = async (
+  vehicleId,
+  userId,
+  currentMileage,
+) => {
+  const vehicle = await Vehicle.findOneAndUpdate(
+    {
+      _id: vehicleId,
+      owner: userId,
+      currentMileage: { $lt: currentMileage },
+    },
+    { $set: { currentMileage } },
+    { new: true, runValidators: true },
+  );
+
+  if (vehicle) {
+    return vehicle;
+  }
+
+  const ownedVehicle = await Vehicle.exists({ _id: vehicleId, owner: userId });
+
+  if (!ownedVehicle) {
+    throw vehicleNotFound();
+  }
+
+  throw new AppError(
+    "Mileage must be greater than the current mileage",
+    409,
+  );
+};
+
 export const deleteVehicleForOwner = async (vehicleId, userId) => {
   const session = await mongoose.startSession();
   let deletedVehicle;

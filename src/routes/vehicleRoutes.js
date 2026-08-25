@@ -2,6 +2,7 @@ import { Router } from "express";
 import protect from "../middleware/protect.js";
 import {
   addVehicle,
+  advanceVehicleMileage,
   deleteVehicle,
   getVehicle,
   getVehicles,
@@ -13,6 +14,7 @@ import {
   governmentVehicleLookupParamsSchema,
   manualVehicleCreationSchema,
   vehicleIdParamsSchema,
+  vehicleMileageAdvanceSchema,
   vehicleUpdateSchema,
 } from "../validators/vehicleSchemas.js";
 import maintenanceRoutes from "./maintenanceRoutes.js";
@@ -33,6 +35,12 @@ router.get(
   "/:vehicleId",
   validate(vehicleIdParamsSchema, "params"),
   getVehicle,
+);
+router.patch(
+  "/:vehicleId/mileage",
+  validate(vehicleIdParamsSchema, "params"),
+  validate(vehicleMileageAdvanceSchema),
+  advanceVehicleMileage,
 );
 router.patch(
   "/:vehicleId",
