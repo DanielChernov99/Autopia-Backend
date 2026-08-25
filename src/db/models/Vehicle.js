@@ -44,6 +44,10 @@ const vehicleSchema = new mongoose.Schema(
       type: Number,
       required: true,
       min: 0,
+      validate: {
+        validator: Number.isSafeInteger,
+        message: "Current mileage must be a safe integer",
+      },
     },
     trimLevel: {
       type: String,

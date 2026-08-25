@@ -28,6 +28,10 @@ const maintenanceSchema = new mongoose.Schema(
     mileageAtMaintenance: {
       type: Number,
       min: 0,
+      validate: {
+        validator: Number.isSafeInteger,
+        message: "Maintenance mileage must be a safe integer",
+      },
     },
     totalCost: {
       type: Number,

@@ -26,6 +26,9 @@ const optionalDate = dateSchema.optional();
 const optionalMaintenanceInterval = requiredNumber(
   z.number().int().positive(),
 ).optional();
+const mileageSchema = requiredNumber(
+  z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+);
 
 const governmentDataSchema = z
   .object({
@@ -41,7 +44,7 @@ const editableVehicleFields = {
   model: z.string().trim().min(1),
   year: requiredNumber(z.number().int()),
   fuelType: z.string().trim().min(1),
-  currentMileage: requiredNumber(z.number().min(0)),
+  currentMileage: mileageSchema,
   trimLevel: z.string().trim().optional(),
   color: z.string().trim().optional(),
   vehicleLicenseValidUntil: optionalDate,
@@ -70,6 +73,12 @@ export const vehicleUpdateSchema = z
   .refine((update) => Object.keys(update).length > 0, {
     message: "At least one vehicle field is required",
   });
+
+export const vehicleMileageAdvanceSchema = z
+  .object({
+    currentMileage: mileageSchema,
+  })
+  .strict();
 
 export const vehicleIdParamsSchema = z
   .object({
