@@ -365,19 +365,30 @@ const waitBeforeRetry = async ({
   return hasTimeForUsefulAttempt({ deadline, now, timeoutMs });
 };
 
-const logProviderEvent = (logger, level, message, details) => {
+const logProviderEvent = (logger, level, event, details) => {
   const log = logger?.[level];
 
   if (typeof log === "function") {
-    log.call(logger, message, details);
+    log.call(logger, "[AI]", { event, ...details });
   }
 };
 
-const toLogDetails = ({ error, model, requestState, now }) => ({
+const toLogDetails = ({
+  error,
   model,
-  providerError: error.code,
-  upstreamStatus: error.upstreamStatus,
+  attempt,
+  requestState,
+  requestType,
+  now,
+  ...details
+}) => ({
+  model,
+  attempt,
+  upstreamStatus: error?.upstreamStatus ?? null,
+  code: error?.code ?? null,
   elapsedMs: Math.max(0, now() - requestState.startedAt),
+  requestType,
+  ...details,
 });
 
 const defaultSleep = (delayMs) =>
@@ -431,8 +442,29 @@ export const createGeminiProvider = ({
       startedAt,
       deadline: startedAt + requestBudgetMs,
     };
+    const requestType = continuationState ? "continuation" : "initial";
+    const attemptByPhase = {
+      primary: 0,
+      fallback: 0,
+      continuation: 0,
+    };
+    const logRequestEvent = (level, event, details) =>
+      logProviderEvent(
+        logger,
+        level,
+        event,
+        toLogDetails({ ...details, requestState, requestType, now }),
+      );
+    const logFinalFailure = (error, phase, selectedModel, details = {}) =>
+      logRequestEvent("error", "provider_failed", {
+        error,
+        model: selectedModel,
+        attempt: attemptByPhase[phase],
+        phase,
+        ...details,
+      });
     const requestModel = async (selectedModel) => {
-      const attemptState = { ...requestState, model: selectedModel };
+      const modelRequestState = { ...requestState, model: selectedModel };
 
       try {
         const attemptTimeoutMs = getAttemptTimeoutMs({
@@ -451,7 +483,7 @@ export const createGeminiProvider = ({
         const toolCalls = getToolCalls(
           response,
           toolRounds.length + 1,
-          attemptState,
+          modelRequestState,
         );
 
         if (toolCalls) {
@@ -472,8 +504,11 @@ export const createGeminiProvider = ({
     const requestModelWithRetry = async ({
       selectedModel,
       retryDelayMs,
-      retryMessage,
+      phase,
+      retryEvent,
     }) => {
+      attemptByPhase[phase] = 1;
+
       try {
         return await requestModel(selectedModel);
       } catch (error) {
@@ -491,89 +526,115 @@ export const createGeminiProvider = ({
         });
 
         if (!canRetry) {
+          logRequestEvent("warn", "retry_skipped_deadline", {
+            error,
+            model: selectedModel,
+            attempt: attemptByPhase[phase],
+            phase,
+            nextAttempt: attemptByPhase[phase] + 1,
+          });
           throw error;
         }
 
-        logProviderEvent(
-          logger,
-          "warn",
-          retryMessage,
-          toLogDetails({
-            error,
-            model: selectedModel,
-            requestState,
-            now,
-          }),
-        );
+        attemptByPhase[phase] = 2;
+        logRequestEvent("warn", retryEvent, {
+          error,
+          model: selectedModel,
+          attempt: attemptByPhase[phase],
+          failedAttempt: 1,
+        });
 
         return requestModel(selectedModel);
       }
     };
 
     if (continuationState) {
-      return requestModelWithRetry({
-        selectedModel: continuationState.model,
-        retryDelayMs: PRIMARY_RETRY_DELAY_MS,
-        retryMessage: "Gemini continuation failed — retrying selected model",
-      });
+      try {
+        return await requestModelWithRetry({
+          selectedModel: continuationState.model,
+          retryDelayMs: PRIMARY_RETRY_DELAY_MS,
+          phase: "continuation",
+          retryEvent: "continuation_retry",
+        });
+      } catch (error) {
+        logFinalFailure(error, "continuation", continuationState.model, {
+          fallbackModel: null,
+        });
+        throw error;
+      }
     }
 
     try {
       return await requestModelWithRetry({
         selectedModel: model,
         retryDelayMs: PRIMARY_RETRY_DELAY_MS,
-        retryMessage: "Primary Gemini request failed — retrying",
+        phase: "primary",
+        retryEvent: "primary_retry",
       });
     } catch (primaryError) {
+      const primaryIsTransient = isTransientProviderError(primaryError);
+
+      if (!fallbackModel || !primaryIsTransient) {
+        logFinalFailure(primaryError, "primary", model, {
+          fallbackModel: fallbackModel ?? null,
+          fallbackAttempted: false,
+        });
+        throw primaryError;
+      }
+
       if (
-        !fallbackModel ||
-        !isTransientProviderError(primaryError) ||
         !hasTimeForUsefulAttempt({
           deadline: requestState.deadline,
           now,
           timeoutMs,
         })
       ) {
+        logRequestEvent("warn", "fallback_skipped_deadline", {
+          error: primaryError,
+          model,
+          attempt: attemptByPhase.primary,
+          phase: "primary",
+          fallbackModel,
+        });
+        logFinalFailure(primaryError, "primary", model, {
+          fallbackModel,
+          fallbackAttempted: false,
+        });
         throw primaryError;
       }
 
-      logProviderEvent(
-        logger,
-        "warn",
-        "Primary Gemini model unavailable — attempting fallback",
-        toLogDetails({
-          error: primaryError,
-          model,
-          requestState,
-          now,
-        }),
-      );
+      logRequestEvent("warn", "fallback_attempt", {
+        error: primaryError,
+        model: fallbackModel,
+        attempt: 1,
+        primaryModel: model,
+        fallbackModel,
+      });
 
       try {
         const response = await requestModelWithRetry({
           selectedModel: fallbackModel,
           retryDelayMs: FALLBACK_RETRY_DELAY_MS,
-          retryMessage: "Fallback Gemini request failed — retrying",
+          phase: "fallback",
+          retryEvent: "fallback_retry",
         });
 
-        logProviderEvent(logger, "info", "Gemini fallback succeeded", {
+        logProviderEvent(logger, "info", "fallback_succeeded", {
           model: fallbackModel,
+          attempt: attemptByPhase.fallback,
           elapsedMs: Math.max(0, now() - requestState.startedAt),
+          requestType,
+          primaryModel: model,
+          fallbackModel,
         });
 
         return response;
       } catch (fallbackError) {
-        logProviderEvent(
-          logger,
-          "warn",
-          "Gemini fallback failed",
-          toLogDetails({
-            error: fallbackError,
-            model: fallbackModel,
-            requestState,
-            now,
-          }),
-        );
+        logFinalFailure(fallbackError, "fallback", fallbackModel, {
+          primaryModel: model,
+          fallbackModel,
+          fallbackAttempted: true,
+        });
         throw fallbackError;
       }
     }
