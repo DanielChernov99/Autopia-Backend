@@ -9,8 +9,9 @@ export const createConfiguredGeminiProvider = ({
   createClient = createGeminiClient,
   createProvider = createGeminiProvider,
 } = {}) => {
-  const { apiKey, model, timeoutMs } = getGeminiConfig(environment);
+  const { apiKey, model, fallbackModel, timeoutMs } =
+    getGeminiConfig(environment);
   const client = createClient({ apiKey });
 
-  return createProvider({ client, model, timeoutMs });
+  return createProvider({ client, model, fallbackModel, timeoutMs });
 };

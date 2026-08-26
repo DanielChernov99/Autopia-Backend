@@ -7,6 +7,23 @@ import { toAIVehicleOverview } from "./vehicleMappers.js";
 
 const timeoutStatuses = new Set([408, 504]);
 const configurationStatuses = new Set([400, 401, 403, 404]);
+const transientStatuses = new Set([408, 500, 502, 503, 504]);
+const transientNetworkCodes = new Set([
+  "EAI_AGAIN",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "EHOSTUNREACH",
+  "ENETUNREACH",
+  "ETIMEDOUT",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "UND_ERR_HEADERS_TIMEOUT",
+  "UND_ERR_SOCKET",
+]);
+const DEFAULT_LOGICAL_REQUEST_BUDGET_MS = 55000;
+const MIN_USEFUL_ATTEMPT_MS = 1000;
+const PRIMARY_RETRY_DELAY_MS = 500;
+const FALLBACK_RETRY_DELAY_MS = 1000;
+const RETRY_JITTER_RATIO = 0.2;
 const applicationCountry = "Israel";
 const applicationTimeZone = "Asia/Jerusalem";
 const israelDateTimeFormatter = new Intl.DateTimeFormat("en-IL", {
@@ -80,7 +97,7 @@ const toGeminiToolRoundContents = ({ toolCalls, toolResults }) => [
   },
 ];
 
-const getToolCalls = (response, roundNumber) => {
+const getToolCalls = (response, roundNumber, requestState) => {
   const responseParts = response?.candidates?.[0]?.content?.parts;
   const functionCallParts = Array.isArray(responseParts)
     ? responseParts.filter(({ functionCall }) => functionCall)
@@ -107,13 +124,20 @@ const getToolCalls = (response, roundNumber) => {
     // Gemini 3 requires this opaque part-level signature on continuation.
     const thoughtSignature = functionCallParts[index]?.thoughtSignature;
 
+    const providerMetadata = {
+      model: requestState.model,
+      requestStartedAt: requestState.startedAt,
+      requestDeadline: requestState.deadline,
+      ...(typeof thoughtSignature === "string" && thoughtSignature.length > 0
+        ? { thoughtSignature }
+        : {}),
+    };
+
     return {
       id: id ?? `tool-call-${roundNumber}-${index + 1}`,
       name,
       args: args ?? {},
-      ...(typeof thoughtSignature === "string" && thoughtSignature.length > 0
-        ? { providerMetadata: { thoughtSignature } }
-        : {}),
+      providerMetadata,
     };
   });
 };
@@ -195,9 +219,194 @@ const normalizeGeminiError = (error) => {
   });
 };
 
+const hasTransientNetworkCode = (error) => {
+  let currentError = error;
+
+  for (let depth = 0; currentError && depth < 4; depth += 1) {
+    if (transientNetworkCodes.has(currentError.code)) {
+      return true;
+    }
+
+    currentError = currentError.cause;
+  }
+
+  return false;
+};
+
+const isTemporaryRateLimitError = (error) => {
+  const message = error?.cause?.message;
+
+  if (typeof message !== "string") {
+    return false;
+  }
+
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    normalizedMessage.includes("rate_limit_exceeded") ||
+    normalizedMessage.includes("too many requests")
+  ) {
+    return true;
+  }
+
+  if (
+    normalizedMessage.includes("daily quota") ||
+    normalizedMessage.includes("per day") ||
+    normalizedMessage.includes("billing") ||
+    normalizedMessage.includes("spend limit") ||
+    normalizedMessage.includes("quota_exceeded") ||
+    normalizedMessage.includes("quota exceeded")
+  ) {
+    return false;
+  }
+
+  return [
+    "rate limit",
+    "temporar",
+    "capacity",
+    "overload",
+    "high demand",
+  ].some((marker) => normalizedMessage.includes(marker));
+};
+
+const isTransientProviderError = (error) => {
+  if (!(error instanceof ProviderError)) {
+    return false;
+  }
+
+  if (error.code === PROVIDER_ERROR_CODES.TIMEOUT) {
+    return true;
+  }
+
+  if (error.code !== PROVIDER_ERROR_CODES.UNAVAILABLE) {
+    return false;
+  }
+
+  if (error.upstreamStatus === 429) {
+    return isTemporaryRateLimitError(error);
+  }
+
+  return (
+    transientStatuses.has(error.upstreamStatus) ||
+    hasTransientNetworkCode(error)
+  );
+};
+
+const createBudgetTimeoutError = () =>
+  new ProviderError(PROVIDER_ERROR_CODES.TIMEOUT, {
+    cause: new Error("Gemini logical request time budget exhausted"),
+  });
+
+const getContinuationRequestState = ({
+  toolRounds,
+  model,
+  now,
+  requestBudgetMs,
+}) => {
+  if (toolRounds.length === 0) {
+    return null;
+  }
+
+  const metadata = toolRounds[0]?.toolCalls?.[0]?.providerMetadata;
+  const startedAt = Number.isFinite(metadata?.requestStartedAt)
+    ? metadata.requestStartedAt
+    : now();
+
+  return {
+    model:
+      typeof metadata?.model === "string" && metadata.model.length > 0
+        ? metadata.model
+        : model,
+    startedAt,
+    deadline: Number.isFinite(metadata?.requestDeadline)
+      ? metadata.requestDeadline
+      : startedAt + requestBudgetMs,
+  };
+};
+
+const getAttemptTimeoutMs = ({ deadline, now, timeoutMs }) => {
+  const remainingMs = Math.floor(deadline - now());
+
+  if (remainingMs <= 0) {
+    throw createBudgetTimeoutError();
+  }
+
+  return Math.min(timeoutMs, remainingMs);
+};
+
+const hasTimeForUsefulAttempt = ({ deadline, now, timeoutMs }) =>
+  deadline - now() >= Math.min(timeoutMs, MIN_USEFUL_ATTEMPT_MS);
+
+const getRetryDelayMs = (baseDelayMs, random) => {
+  const jitter = 1 - RETRY_JITTER_RATIO + random() * RETRY_JITTER_RATIO * 2;
+
+  return Math.round(baseDelayMs * jitter);
+};
+
+const waitBeforeRetry = async ({
+  baseDelayMs,
+  deadline,
+  now,
+  random,
+  sleep,
+  timeoutMs,
+}) => {
+  if (!hasTimeForUsefulAttempt({ deadline, now, timeoutMs })) {
+    return false;
+  }
+
+  const delayMs = getRetryDelayMs(baseDelayMs, random);
+  const minimumAttemptMs = Math.min(timeoutMs, MIN_USEFUL_ATTEMPT_MS);
+
+  if (deadline - now() - delayMs >= minimumAttemptMs) {
+    await sleep(delayMs);
+  }
+
+  return hasTimeForUsefulAttempt({ deadline, now, timeoutMs });
+};
+
+const logProviderEvent = (logger, level, event, details) => {
+  const log = logger?.[level];
+
+  if (typeof log === "function") {
+    log.call(logger, "[AI]", { event, ...details });
+  }
+};
+
+const toLogDetails = ({
+  error,
+  model,
+  attempt,
+  requestState,
+  requestType,
+  now,
+  ...details
+}) => ({
+  model,
+  attempt,
+  upstreamStatus: error?.upstreamStatus ?? null,
+  code: error?.code ?? null,
+  elapsedMs: Math.max(0, now() - requestState.startedAt),
+  requestType,
+  ...details,
+});
+
+const defaultSleep = (delayMs) =>
+  new Promise((resolve) => setTimeout(resolve, delayMs));
+
 export const createGeminiClient = ({ apiKey }) => new GoogleGenAI({ apiKey });
 
-export const createGeminiProvider = ({ client, model, timeoutMs }) => ({
+export const createGeminiProvider = ({
+  client,
+  model,
+  fallbackModel,
+  timeoutMs,
+  requestBudgetMs = DEFAULT_LOGICAL_REQUEST_BUDGET_MS,
+  now = Date.now,
+  random = Math.random,
+  sleep = defaultSleep,
+  logger = console,
+}) => ({
   async generateResponse({
     messages,
     garage,
@@ -209,9 +418,8 @@ export const createGeminiProvider = ({ client, model, timeoutMs }) => ({
       ...toolRounds.flatMap(toGeminiToolRoundContents),
     ];
     const systemInstruction = createGarageSystemInstruction(garage);
-    const config = {
+    const baseConfig = {
       systemInstruction,
-      httpOptions: { timeout: timeoutMs },
       ...(tools.length > 0
         ? {
             tools: [
@@ -222,28 +430,213 @@ export const createGeminiProvider = ({ client, model, timeoutMs }) => ({
           }
         : {}),
     };
+    const continuationState = getContinuationRequestState({
+      toolRounds,
+      model,
+      now,
+      requestBudgetMs,
+    });
+    const startedAt = continuationState?.startedAt ?? now();
+    const requestState = continuationState ?? {
+      model,
+      startedAt,
+      deadline: startedAt + requestBudgetMs,
+    };
+    const requestType = continuationState ? "continuation" : "initial";
+    const attemptByPhase = {
+      primary: 0,
+      fallback: 0,
+      continuation: 0,
+    };
+    const logRequestEvent = (level, event, details) =>
+      logProviderEvent(
+        logger,
+        level,
+        event,
+        toLogDetails({ ...details, requestState, requestType, now }),
+      );
+    const logFinalFailure = (error, phase, selectedModel, details = {}) =>
+      logRequestEvent("error", "provider_failed", {
+        error,
+        model: selectedModel,
+        attempt: attemptByPhase[phase],
+        phase,
+        ...details,
+      });
+    const requestModel = async (selectedModel) => {
+      const modelRequestState = { ...requestState, model: selectedModel };
+
+      try {
+        const attemptTimeoutMs = getAttemptTimeoutMs({
+          deadline: requestState.deadline,
+          now,
+          timeoutMs,
+        });
+        const response = await client.models.generateContent({
+          model: selectedModel,
+          contents,
+          config: {
+            ...baseConfig,
+            httpOptions: { timeout: attemptTimeoutMs },
+          },
+        });
+        const toolCalls = getToolCalls(
+          response,
+          toolRounds.length + 1,
+          modelRequestState,
+        );
+
+        if (toolCalls) {
+          return {
+            type: "tool_calls",
+            toolCalls,
+          };
+        }
+
+        return {
+          type: "message",
+          content: getResponseContent(response),
+        };
+      } catch (error) {
+        throw normalizeGeminiError(error);
+      }
+    };
+    const requestModelWithRetry = async ({
+      selectedModel,
+      retryDelayMs,
+      phase,
+      retryEvent,
+    }) => {
+      attemptByPhase[phase] = 1;
+
+      try {
+        return await requestModel(selectedModel);
+      } catch (error) {
+        if (!isTransientProviderError(error)) {
+          throw error;
+        }
+
+        const canRetry = await waitBeforeRetry({
+          baseDelayMs: retryDelayMs,
+          deadline: requestState.deadline,
+          now,
+          random,
+          sleep,
+          timeoutMs,
+        });
+
+        if (!canRetry) {
+          logRequestEvent("warn", "retry_skipped_deadline", {
+            error,
+            model: selectedModel,
+            attempt: attemptByPhase[phase],
+            phase,
+            nextAttempt: attemptByPhase[phase] + 1,
+          });
+          throw error;
+        }
+
+        attemptByPhase[phase] = 2;
+        logRequestEvent("warn", retryEvent, {
+          error,
+          model: selectedModel,
+          attempt: attemptByPhase[phase],
+          failedAttempt: 1,
+        });
+
+        return requestModel(selectedModel);
+      }
+    };
+
+    if (continuationState) {
+      try {
+        return await requestModelWithRetry({
+          selectedModel: continuationState.model,
+          retryDelayMs: PRIMARY_RETRY_DELAY_MS,
+          phase: "continuation",
+          retryEvent: "continuation_retry",
+        });
+      } catch (error) {
+        logFinalFailure(error, "continuation", continuationState.model, {
+          fallbackModel: null,
+        });
+        throw error;
+      }
+    }
 
     try {
-      const response = await client.models.generateContent({
-        model,
-        contents,
-        config,
+      return await requestModelWithRetry({
+        selectedModel: model,
+        retryDelayMs: PRIMARY_RETRY_DELAY_MS,
+        phase: "primary",
+        retryEvent: "primary_retry",
       });
-      const toolCalls = getToolCalls(response, toolRounds.length + 1);
+    } catch (primaryError) {
+      const primaryIsTransient = isTransientProviderError(primaryError);
 
-      if (toolCalls) {
-        return {
-          type: "tool_calls",
-          toolCalls,
-        };
+      if (!fallbackModel || !primaryIsTransient) {
+        logFinalFailure(primaryError, "primary", model, {
+          fallbackModel: fallbackModel ?? null,
+          fallbackAttempted: false,
+        });
+        throw primaryError;
       }
 
-      return {
-        type: "message",
-        content: getResponseContent(response),
-      };
-    } catch (error) {
-      throw normalizeGeminiError(error);
+      if (
+        !hasTimeForUsefulAttempt({
+          deadline: requestState.deadline,
+          now,
+          timeoutMs,
+        })
+      ) {
+        logRequestEvent("warn", "fallback_skipped_deadline", {
+          error: primaryError,
+          model,
+          attempt: attemptByPhase.primary,
+          phase: "primary",
+          fallbackModel,
+        });
+        logFinalFailure(primaryError, "primary", model, {
+          fallbackModel,
+          fallbackAttempted: false,
+        });
+        throw primaryError;
+      }
+
+      logRequestEvent("warn", "fallback_attempt", {
+        error: primaryError,
+        model: fallbackModel,
+        attempt: 1,
+        primaryModel: model,
+        fallbackModel,
+      });
+
+      try {
+        const response = await requestModelWithRetry({
+          selectedModel: fallbackModel,
+          retryDelayMs: FALLBACK_RETRY_DELAY_MS,
+          phase: "fallback",
+          retryEvent: "fallback_retry",
+        });
+
+        logProviderEvent(logger, "info", "fallback_succeeded", {
+          model: fallbackModel,
+          attempt: attemptByPhase.fallback,
+          elapsedMs: Math.max(0, now() - requestState.startedAt),
+          requestType,
+          primaryModel: model,
+          fallbackModel,
+        });
+
+        return response;
+      } catch (fallbackError) {
+        logFinalFailure(fallbackError, "fallback", fallbackModel, {
+          primaryModel: model,
+          fallbackModel,
+          fallbackAttempted: true,
+        });
+        throw fallbackError;
+      }
     }
   },
 });
