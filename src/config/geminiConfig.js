@@ -20,6 +20,22 @@ const getRequiredValue = (environment, name) => {
   return value.trim();
 };
 
+const getOptionalValue = (environment, name) => {
+  const value = environment[name];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value !== "string") {
+    throw configurationError(`${name} must be a string`);
+  }
+
+  const normalizedValue = value.trim();
+
+  return normalizedValue.length > 0 ? normalizedValue : undefined;
+};
+
 const getTimeoutMs = (environment) => {
   const value = environment.GEMINI_TIMEOUT_MS;
 
@@ -47,8 +63,20 @@ const getTimeoutMs = (environment) => {
   return timeoutMs;
 };
 
-export const getGeminiConfig = (environment = process.env) => ({
-  apiKey: getRequiredValue(environment, "GEMINI_API_KEY"),
-  model: getRequiredValue(environment, "GEMINI_MODEL"),
-  timeoutMs: getTimeoutMs(environment),
-});
+export const getGeminiConfig = (environment = process.env) => {
+  const model = getRequiredValue(environment, "GEMINI_MODEL");
+  const fallbackModel = getOptionalValue(environment, "GEMINI_FALLBACK_MODEL");
+
+  if (fallbackModel === model) {
+    throw configurationError(
+      "GEMINI_FALLBACK_MODEL must differ from GEMINI_MODEL",
+    );
+  }
+
+  return {
+    apiKey: getRequiredValue(environment, "GEMINI_API_KEY"),
+    model,
+    fallbackModel,
+    timeoutMs: getTimeoutMs(environment),
+  };
+};
