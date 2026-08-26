@@ -19,7 +19,7 @@ export const createVehicleDetailTools = ({
   const getVehicleDetails = defineTool({
     name: "get_vehicle_details",
     description:
-      "Retrieves detailed persisted vehicle information for one vehicle owned by the authenticated user, including specifications, validity dates, tire sizes, registration date, and last test date. Maintenance history and reminders are retrieved by their dedicated tools.",
+      "Retrieves detailed persisted vehicle information for one vehicle owned by the authenticated user, including Government-derived technical identifiers and classifications, specifications, validity dates, tire sizes, registration date, and last test date. Engine code is an identifier, not engine displacement. Maintenance history and reminders are retrieved by their dedicated tools.",
     argsSchema: z.object({
       vehicleId: z.string().regex(objectIdPattern),
     }),
@@ -33,7 +33,7 @@ export const createVehicleDetailTools = ({
   const getMyVehicleDetails = defineTool({
     name: "get_my_vehicle_details",
     description:
-      "Retrieves the same detailed persisted vehicle information for all vehicles owned by the authenticated user. Use for detailed cross-vehicle questions or comparisons. Maintenance history and reminders remain in their dedicated tools.",
+      "Retrieves the same detailed persisted vehicle information for all vehicles owned by the authenticated user, including Government-derived technical identifiers and classifications. Engine code is an identifier, not engine displacement. Use for detailed cross-vehicle questions or comparisons. Maintenance history and reminders remain in their dedicated tools.",
     argsSchema: z.object({}),
     execute: async ({ userId }) => {
       const vehicles = await listOwnedVehicles(userId);
